@@ -1,0 +1,63 @@
+#mlColorPicker {
+	z-index: 100;
+	border: 1px solid black;
+	background-color: #DDDDDD;
+	padding-bottom: 5px;
+}
+#mlSelectedColorDiv {
+	float: left;
+	width: 43px;
+	height: 20px;
+	border: solid 1px black;
+	background-color: white;
+	margin: 5px;
+}
+#mlCloseColorDiv {
+  cursor: pointer;
+	float: right;	
+	margin: 3px;
+	text-align: center;
+	font: 14px monospace;
+	border: 2px solid #c2c2c2;
+    padding: 1px 5px;
+    background-color: #cbc2d4;
+    left: 198px;
+    border-radius: 20px;
+    color: black;
+    font-weight: bold;
+}
+#mlSelectedColorText {
+	float: left;
+	width: 60px;
+	border:solid 1px black;
+	font-size: small;
+	margin: 4px;
+    font-size: 17px;
+    margin-left: 2px;
+    color: black;
+}
+#mlHashTagText {
+	float: left;
+    margin-top: 6px;
+    margin-left: 44px;
+    font-size: 18px;
+    color: black;
+}
+
+#mlColors {
+	float: left;
+	margin: 0 5px 0 5px;
+	border-bottom: 1px solid black;
+	border-right: 1px solid black;
+	clear: both;
+	width: 245px;
+	height: 156px;
+}
+.mlColor {
+	cursor: pointer;
+	border-left: 1px solid black;
+	border-top: 1px solid black;
+	float: left;
+	width: 12px;
+	height: 12px;
+}

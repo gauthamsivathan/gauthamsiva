@@ -1,0 +1,45 @@
+var validator = (function () {
+
+    var regAlphaB = /^[A-z]+$/,
+        regNumber = /^\d+$/,
+        regEmail = /^(([^<>()[\]\.,;:\s@\"]+(\.[^<>()[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
+
+    function validator(string) {
+        this.string = string ? string : "";
+    }
+
+    validator.prototype.print = function() {
+        return this.string;
+    }
+    validator.prototype.escape = function() {
+        return this.string.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+    }
+    validator.prototype.clean = function() {
+        this.escape();
+        return this.string.trim();
+    };
+    validator.prototype.isEmail = function() {
+        this.clean();
+        return regEmail.test(this.string);
+    };
+    validator.prototype.isAlphaB = function() {
+        this.clean();
+        return regAlphaB.test(this.string);
+    };
+    validator.prototype.isNumber = function() {
+        this.clean();
+        return regNumber.test(this.string);
+    };
+
+    return validator;
+
+})();
+
+function isNumberKey(evt) {
+    var charCode = (evt.which) ? evt.which : event.keyCode
+    if (charCode > 31 && (charCode < 48 || charCode > 57))
+    return false;
+
+    return true;
+}
+

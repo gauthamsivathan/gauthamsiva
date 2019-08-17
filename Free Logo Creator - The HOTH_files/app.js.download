@@ -1,0 +1,303 @@
+var DomHelper = (function() {
+    function DomHelper(element) {
+        this.element = element;
+        this.elements = {
+            'canvas': '#canvas',
+            'active-panels': '#active-panels',
+            'tools': '#tools',
+            'authentication': '#authentication',
+            'object-layer': '#object-layer'
+        };
+        this.panelOverlay = '.panel-overlay';
+        this.overlay = '.overlay';
+    }
+    DomHelper.prototype.removeOverlay = function(element) {
+        $(this.panelOverlay).remove();
+    };
+    DomHelper.prototype.wrapOverlay = function(element) {
+        this.removeOverlay();
+        $("<div class='panel-overlay'></div>").css({
+            'padding': '10px',
+            'position': "absolute",
+            'width': "100%",
+            'height': "100%",
+            'top': 0,
+            'left': 0,
+            'background': "rgba(0, 0, 0, 0.5)"
+        }).appendTo($(element));
+    };
+    DomHelper.prototype.disableElement = function(element) {};
+    DomHelper.prototype.disableWorkingPanel = function() {
+        this.wrapOverlay(this.elements["active-panels"]);
+    };
+    return DomHelper;
+})(); var DomHelper = new DomHelper();
+var Messenger = (function() {
+    function Messenger() {
+        this.listeners = {};
+        this.callers = {};
+        if(Messenger.instance === null || Messenger.instance === undefined) {
+            Messenger.instance = this;
+            $msg = this;
+        }
+        else {
+            console.error("Messenger is a singleton !!!");
+        }
+    }
+    Messenger.prototype.on = function(event, callback, caller) {
+        this.send("");
+        if(!caller)
+            caller = callback.caller;
+        if(Messenger.instance.listeners[event] === null || Messenger.instance.listeners[event] === undefined) {
+            Messenger.instance.listeners[event] = [];
+            Messenger.instance.callers[event] = [];
+        }
+        Messenger.instance.listeners[event].push(callback);
+        Messenger.instance.callers[event].push(caller);
+    };
+    Messenger.prototype.send = function(event) {
+        var args = [];
+        for(var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
+        var cbs = Messenger.instance.listeners[event];
+        if(cbs === null || cbs === undefined)
+            return;
+        for(var i = 0; i < cbs.length; i++) {
+            cbs[i].apply(Messenger.instance.callers[event][i], args);
+        }
+    };
+    return Messenger;
+})();
+var KeysBinder = (function() {
+    function KeysBinder() {
+        this.ctrlBinds = {};
+        this.ctrlBindsCallers = {};
+        this.keyBinds = {};
+        this.keyBindsCallers = {};
+        this.ctrlPressed = false;
+        document.onkeydown = this.onKeyDown.bind(this);
+        document.onkeyup = this.onKeyUp.bind(this);
+    }
+    KeysBinder.prototype.bindKey = function(keycode, callback, caller) {
+        this.keyBinds[keycode] = callback;
+        this.keyBindsCallers[keycode] = caller;
+    };
+    KeysBinder.prototype.bindCtrl = function(keycode, callback, caller) {
+        this.ctrlBinds[keycode] = callback;
+        this.ctrlBindsCallers[keycode] = caller;
+    };
+    KeysBinder.prototype.onKeyDown = function(e) {
+        var evtobj = window.event ? event : e;
+        if(evtobj.keyCode == 17) {
+            this.ctrlPressed = true;
+        }
+        var cb = this.ctrlBinds[evtobj.keyCode];
+        var cbkey = this.keyBinds[evtobj.keyCode];
+        if(this.ctrlPressed && cb) {
+            cb.call(this.ctrlBindsCallers[evtobj.keyCode]);
+            this.ctrlBindsCallers[evtobj.keyCode].$scope.$apply();
+            evtobj.preventDefault();
+        }
+        else if(!this.ctrlPressed && cbkey) {
+            cbkey.call(this.keyBindsCallers[evtobj.keyCode]);
+            if(typeof this.ctrlBindsCallers[evtobj.keyCode] != 'undefined') {
+                this.ctrlBindsCallers[evtobj.keyCode].$scope.$apply();
+            }
+        }
+    };
+    KeysBinder.prototype.onKeyUp = function(e) {
+        var evtobj = window.event ? event : e;
+        evtobj.preventDefault();
+        if(evtobj.keyCode == 17) {
+            this.ctrlPressed = false;
+        }
+    };
+    return KeysBinder;
+})();
+var DOType = (function() {
+    function DOType() {}
+    DOType.SYMBOL = "SYMBOL";
+    DOType.PATH = "PATH";
+    DOType.TEXT = "TEXT";
+    DOType.ITEXT = "I-TEXT";
+    DOType.IMAGE = "IMAGE";
+    DOType.SHADOW = "SHADOW";
+    return DOType;
+})();
+var DODefaults = (function() {
+    function DODefaults() {}
+    DODefaults.WIDTH = 120;
+    DODefaults.HEIGHT = 120;
+    DODefaults.SCALE = 120;
+    return DODefaults;
+})();
+var DisplayObject = (function() {
+    function DisplayObject() {
+        this.id = 0;
+        this.selected = false;
+        this.name = "";
+        this.color = "";
+        this.font = "Arial";
+        this.raw = null;
+        this.shadow = {
+            enabled: false,
+            color: '#000',
+            blur: 5,
+            offsetX: 9.84807753012208,
+            offsetY: 1.7364817766693033,
+            direction: 10,
+            outset: 10,
+            opacity: 0.6,
+            fillShadow: true,
+            strokeShadow: true
+        };
+        this.glow = {
+            enabled: false,
+            color: 'rgba(0,0,0,0.6)',
+            blur: 40,
+            offsetX: 0,
+            offsetY: 0,
+            opacity: 0.6,
+            fillShadow: true,
+            strokeShadow: true
+        };
+    }
+    return DisplayObject;
+})();
+
+var $canvas;
+var $oColors = [];
+var $oCanvasColor = {previous: "fff", current: "fff"};
+var keys = new KeysBinder();
+var data = {};
+var svgImg = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n  <defs>\n    <radialGradient gradientUnits=\"userSpaceOnUse\" r=\"819.2\" cx=\"0\" cy=\"0\" spreadMethod=\"pad\" gradientTransform=\"matrix(0.193359375 0 0 0.2111663818359375 158.4 173)\" id=\"gradient0\">\n      <stop offset=\"0\" stop-color=\"#ffffff\" stop-opacity=\"0.28627450980392155\"/>\n      <stop offset=\"1\" stop-color=\"#f5f5f5\"/>\n    </radialGradient>\n    <radialGradient gradientUnits=\"userSpaceOnUse\" r=\"819.2\" cx=\"0\" cy=\"0\" spreadMethod=\"pad\" gradientTransform=\"matrix(0.13519287109375 -0.1382598876953125 0.150970458984375 0.147613525390625 178 79.55)\" id=\"gradient1\">\n      <stop offset=\"0\" stop-color=\"#ffffff\" stop-opacity=\"0.28627450980392155\"/>\n      <stop offset=\"1\" stop-color=\"#f5f5f5\"/>\n    </radialGradient>\n  </defs>\n  <g>\n    <path stroke=\"none\" fill=\"url(#gradient0)\" d=\"M272 47.1 Q274.65 35.4 267.6 28.75 257.55 19.25 227.75 19.15 201.95 19.05 151.1 31.2 L118.7 39 Q104.35 42.2 101.35 41.35 97.05 40.15 110.25 34.25 122 28.95 144.5 21.3 150.2 19.35 161.4 14.7 172.45 10.1 178.9 7.95 201.05 0.45 227.7 0 260.3 -0.55 282.95 12.6 306.25 26.15 305.95 47.15 305.75 64.8 294.35 87.25 288.6 98.55 282.55 107.85 286.2 114.2 290.2 124.05 293.8 132.9 295.7 139.45 297.25 144.85 297.75 155.2 L298.3 167.85 Q299.05 174 302.95 178.95 305.25 181.95 310.35 186.05 314.95 189.8 316.05 191.55 317.8 194.45 315.45 197.8 311.4 203.6 303.3 194.35 L297.25 187.15 Q294.1 183.65 292.4 183.85 290.65 184.05 291 189.95 L292.4 202.8 Q294.4 221.3 288.5 221.3 284.95 221.3 283.8 216.65 282.95 213.5 283.1 206.25 283.2 197.6 282.95 195.3 282.45 190 280.05 189.1 277.65 188.2 275.2 192.25 274 194.15 270.9 201.5 268.15 207.95 266.2 210.4 263.3 214.1 260.15 212.65 257 211.2 258 207.3 258.65 204.6 262.05 199.3 L267.3 190.75 Q269.65 186.15 268.6 183.85 267.55 181.5 264.75 182.85 263.3 183.55 259.05 186.95 255.1 190.15 253.05 190.95 249.95 192.15 248.3 189.55 245.55 185.15 252.7 181.2 L258.25 178.15 Q261.05 176.4 261.3 174.7 261.55 172.95 260.5 172 260.05 171.55 258.2 170.65 255.05 169.1 256.3 165.35 257.6 161.4 260.95 162.7 265.85 164.6 268 163.8 271.65 162.5 273.2 158.7 274.1 156.45 274.55 151.6 274.85 148.85 274.95 142.55 275 134.75 274.55 128.4 264.4 149.5 248.9 172.6 232.5 197.05 220.95 207.2 206.45 219.9 162.5 238.2 152.65 242.3 133.7 249.65 121.2 254.55 120.75 255.15 118.85 257.85 123.45 272.25 128.3 287.5 126.7 292.4 125.75 295.4 107.45 307.1 88.4 319.25 86.5 322.1 85.2 324.05 85.05 327.9 84.95 330.1 85 334.45 84.85 338 83.6 339.4 82.05 341.2 78.25 340.4 72.45 339.2 74.85 330.8 L76.6 324.7 Q77.2 321.65 75.75 320.75 73.3 319.2 70.4 323.25 68.65 325.7 65.15 333 61.65 340.3 59.85 342.8 56.8 347 54.25 345.65 46.65 341.65 56.6 327.85 L64.25 317.9 Q67.95 312.9 67.55 311.35 67.1 309.75 63.9 309.55 L57.35 309.55 Q48.2 309.45 48.35 302.9 48.4 299.9 52.05 299.5 L60.25 300.2 68.8 301.15 Q72.95 301.05 73.7 298.55 74.25 296.75 73.1 294.5 L70.8 290.7 Q68 286.25 72.35 283.65 76.7 281.05 78.85 287.35 L80.3 292.15 Q81.15 294.45 82.15 294.45 85.85 294.45 95.5 290.45 106.6 285.85 107.95 281.65 109 278.45 106.25 269.1 103.55 260.15 101.8 258.9 100.25 257.8 96.9 258.5 93.9 259.15 93.05 260.2 87 267.45 82.4 269.85 79.85 271.15 76.05 272.5 75.1 273.1 68.2 279.75 60 287.3 52.3 292.05 27.25 307.45 6.25 295.75 -2.3 291 0.8 273.2 1.75 267.65 3.8 261.45 L5.6 256.35 4.95 253.85 Q4.3 250.45 4.3 246 4.3 242.05 9.05 238.85 16.3 233.95 19.15 230.5 L23.8 223.9 Q26.15 220.25 27.8 218.45 33.05 212.75 48.25 205.95 53.75 203.45 64.05 199.65 L84.2 192.45 Q86.6 181.75 90.2 174.5 95.3 164.2 102.25 162.35 110.45 160.2 117.45 165.7 122.2 169.45 125.85 176.25 143.35 168.3 151.1 161.8 163 151.75 175.15 135.9 181.65 127.4 189.7 115.45 197.25 105.1 209.2 95.65 215.8 89.7 216.75 85.85 217.6 82.25 213.4 82.3 211.75 82.35 209.65 85.15 L205.85 90.8 Q200.75 98.1 196 94.4 191.4 90.85 197 86.55 L200.95 83.55 Q202.6 82 201.5 80.95 200.45 79.95 196.65 82 L188.75 86.7 Q177.5 93.35 174.5 88.7 172.15 85 181.7 80.7 L188.5 77.6 Q191.6 75.9 191.2 74.6 190.8 73.35 187.45 74.15 L180.35 76.25 Q170.15 79 169.25 72.75 168.75 69.35 172.3 68 174.7 67.05 180.4 66.85 L188.75 66.35 Q192.6 65.7 192.55 63.5 192.55 62.45 191.1 62.15 L188.2 61.75 Q184.25 61.1 185.6 55.95 186.6 52.15 189.2 52.1 191 52.05 194.65 54.1 199.35 56.8 200.5 57.2 203.7 58.4 205.4 56.7 L209 52.4 Q213.95 48.1 220.5 47.9 226.65 47.75 233.65 58.3 L238.5 66 Q241 69.8 242.5 70.4 258.7 63.15 263.55 59.6 270.3 54.75 272 47.1 M49.2 267.65 Q45.8 271.1 45.35 275.4 44.85 279.75 47.55 282.35 50.2 285 54.5 284.4 58.85 283.8 62.2 280.35 65.6 276.9 66.05 272.6 66.55 268.3 63.85 265.65 61.15 263.05 56.85 263.6 52.6 264.2 49.2 267.65\"/>\n    <path stroke=\"none\" fill=\"url(#gradient1)\" d=\"M49.2 267.65 Q52.6 264.2 56.85 263.6 61.15 263.05 63.85 265.65 66.55 268.3 66.05 272.6 65.6 276.9 62.2 280.35 58.85 283.8 54.5 284.4 50.2 285 47.55 282.35 44.85 279.75 45.35 275.4 45.8 271.1 49.2 267.65\"/>\n  </g>\n</svg>" + "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n  <defs>\n    <linearGradient gradientUnits=\"userSpaceOnUse\" x1=\"-819.2\" x2=\"819.2\" spreadMethod=\"pad\" gradientTransform=\"matrix(0.1937713623046875 0 0 0.1937713623046875 158.4 172.95)\" id=\"gradient0\">\n      <stop offset=\"0\" stop-color=\"#c4202a\"/>\n      <stop offset=\"1\" stop-color=\"#d02531\"/>\n    </linearGradient>\n  </defs>\n  <g>\n    <path stroke=\"none\" fill=\"url(#gradient0)\" d=\"M272 47.1 Q274.65 35.4 267.6 28.75 257.55 19.25 227.75 19.15 201.95 19.05 151.1 31.2 L118.7 39 Q104.35 42.2 101.35 41.35 97.05 40.1 110.25 34.2 122 28.95 144.5 21.25 150.2 19.3 161.4 14.65 172.4 10.1 178.9 7.9 201.05 0.45 227.7 0 260.3 -0.55 282.95 12.6 306.25 26.15 305.95 47.15 305.75 64.8 294.35 87.25 288.6 98.5 282.55 107.8 286.2 114.25 290.2 124 293.85 132.95 295.65 139.4 297.2 144.8 297.75 155.15 L298.3 167.8 Q299.05 173.95 302.95 178.9 305.25 181.95 310.35 186.05 314.95 189.8 316.05 191.5 317.8 194.45 315.45 197.75 311.4 203.55 303.3 194.3 L297.25 187.15 Q294.1 183.6 292.4 183.8 290.65 184 291 189.95 L292.4 202.8 Q294.4 221.3 288.5 221.3 284.95 221.3 283.8 216.65 282.95 213.45 283.1 206.2 283.2 197.55 282.95 195.25 282.45 189.95 280.05 189.05 277.65 188.15 275.2 192.2 274 194.15 270.9 201.45 268.15 207.9 266.2 210.4 263.3 214.05 260.15 212.6 257 211.15 258 207.25 258.65 204.55 262.05 199.25 L267.3 190.7 Q269.65 186.1 268.6 183.8 267.55 181.45 264.75 182.8 263.3 183.55 259.05 186.95 255.1 190.15 253.05 190.95 249.95 192.15 248.3 189.55 245.5 185.15 252.7 181.2 L258.25 178.15 Q261.05 176.4 261.3 174.7 261.55 172.95 260.5 171.95 260.05 171.55 258.2 170.6 255.05 169.05 256.25 165.3 257.55 161.35 260.95 162.65 265.85 164.55 268 163.8 271.65 162.5 273.2 158.65 274.05 156.45 274.55 151.6 274.85 148.8 274.95 142.5 275 134.7 274.55 128.4 264.4 149.5 248.9 172.55 232.5 197 220.9 207.15 206.4 219.9 162.5 238.15 L133.7 249.65 Q121.2 254.5 120.75 255.1 118.9 257.8 123.45 272.2 128.3 287.45 126.7 292.4 125.75 295.4 107.45 307.05 88.4 319.2 86.5 322.1 85.2 324.05 85.05 327.9 84.95 330.05 85 334.4 84.85 337.95 83.6 339.35 82.05 341.15 78.25 340.35 72.45 339.15 74.85 330.75 L76.6 324.65 Q77.2 321.6 75.75 320.7 73.3 319.2 70.4 323.25 68.65 325.65 65.15 332.95 61.65 340.25 59.85 342.8 56.8 346.95 54.25 345.6 46.65 341.65 56.6 327.85 L64.2 317.85 Q67.95 312.9 67.5 311.35 67.05 309.75 63.9 309.5 L57.3 309.5 Q48.2 309.4 48.3 302.9 48.35 299.9 52.05 299.5 L60.25 300.2 68.8 301.15 Q72.95 301.05 73.7 298.55 74.25 296.7 73.1 294.45 L70.8 290.7 Q68 286.2 72.35 283.6 76.7 281 78.85 287.3 L80.3 292.1 Q81.15 294.4 82.15 294.4 85.85 294.4 95.5 290.4 106.6 285.8 107.95 281.6 109 278.4 106.2 269.1 103.55 260.15 101.75 258.85 100.2 257.75 96.9 258.45 93.9 259.1 93.05 260.15 87 267.4 82.4 269.8 79.85 271.15 76.05 272.5 75.1 273.1 68.2 279.75 60 287.25 52.3 292 27.25 307.45 6.25 295.75 -2.3 290.95 0.8 273.15 1.75 267.6 3.8 261.4 L5.6 256.3 4.95 253.8 Q4.3 250.45 4.3 246 4.3 242.05 9.05 238.85 16.35 233.9 19.15 230.45 L23.8 223.85 Q26.15 220.25 27.8 218.45 33.05 212.75 48.25 205.9 53.75 203.45 64.05 199.65 L84.2 192.4 Q86.6 181.7 90.2 174.45 95.3 164.2 102.25 162.35 110.45 160.2 117.45 165.7 122.2 169.45 125.85 176.25 143.25 168.35 151.1 161.75 163 151.7 175.1 135.85 181.6 127.35 189.7 115.4 197.3 104.95 209.2 95.65 215.8 89.7 216.75 85.8 217.6 82.2 213.4 82.3 211.75 82.3 209.65 85.1 L205.85 90.75 Q200.75 98.05 196 94.35 191.4 90.8 197 86.55 L200.95 83.55 Q202.6 82 201.5 80.95 200.45 79.95 196.65 82 L188.75 86.7 Q177.5 93.3 174.5 88.65 172.15 84.95 181.7 80.65 L188.5 77.55 Q191.55 75.9 191.15 74.6 190.75 73.3 187.45 74.1 L180.35 76.2 Q170.15 79 169.25 72.75 168.75 69.35 172.3 67.95 174.7 67.05 180.4 66.8 L188.75 66.3 Q192.6 65.65 192.55 63.45 192.5 62.4 191.1 62.1 L188.15 61.7 Q184.25 61.05 185.6 55.9 186.6 52.1 189.2 52.05 191 52 194.6 54.05 199.3 56.75 200.45 57.2 203.65 58.35 205.35 56.65 L209 52.4 Q213.95 48.05 220.5 47.85 226.65 47.7 233.65 58.3 L238.5 66 Q241 69.8 242.5 70.4 258.75 63.1 263.55 59.6 270.3 54.7 272 47.1\"/>\n  </g>\n</svg>" + "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n  <defs>\n    <linearGradient gradientUnits=\"userSpaceOnUse\" x1=\"-819.2\" x2=\"819.2\" spreadMethod=\"pad\" gradientTransform=\"matrix(0.00994873046875 -0.0101776123046875 0.0101776123046875 0.00994873046875 10.45 10.5)\" id=\"gradient0\">\n      <stop offset=\"0\"/>\n      <stop offset=\"1\" stop-opacity=\"0\"/>\n    </linearGradient>\n  </defs>\n  <g>\n    <path stroke=\"none\" fill=\"url(#gradient0)\" d=\"M3.95 4.15 Q7.35 0.7 11.6 0.1 15.9 -0.45 18.6 2.15 21.3 4.75 20.8 9.05 20.35 13.35 16.95 16.8 13.6 20.25 9.25 20.85 4.95 21.45 2.3 18.8 -0.4 16.2 0.1 11.9 0.55 7.6 3.95 4.15\"/>\n  </g>\n</svg>" + "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n  <defs/>\n  <g>\n    <path stroke=\"none\" fill=\"#ffffff\" d=\"M3.45 1.75 Q3.45 2.45 2.95 2.95 2.45 3.45 1.75 3.45 1 3.45 0.5 2.95 0 2.45 0 1.75 0 1 0.5 0.5 1 0 1.75 0 2.45 0 2.95 0.5 3.45 1 3.45 1.75\"/>\n  </g>\n</svg>";
+data.categories = [];
+var canvas;
+var msg = new Messenger();
+var app = angular.module("OLM", ['ngAnimate', 'ngSanitize', 'ab-base64', 'ui.sortable', 'toggle-switch', 'infinite-scroll', 'uiSwitch']);
+
+app.config(['$httpProvider', function($httpProvider) {
+    delete $httpProvider.defaults.headers.common['X-Requested-With']; //Fixes cross domain requests
+}]);
+
+app.service("Command", Command);
+app.controller("GuidedTourController", ["$scope","$http", GuidedTourController]);
+app.controller("ToolsController", ["$scope", "$rootScope", "$http", 'base64', ToolsController]);
+app.controller("DrawingController", ["$scope", DrawingController]);
+app.controller("PopupsController", ["$scope", PopupsController]);
+app.controller("SymbolsController", ["$scope", "$http", "$filter", SymbolsController]);
+app.controller("ShapesController", ["$scope", "$http", "$filter", ShapesController]);
+app.controller("CanvasController", ["$scope", 'Command', "$compile", CanvasController]);
+app.controller("TransformController", ["$scope", 'Command', "$timeout", TransformController]);
+app.controller("ShadowController", ["$scope", 'Command', ShadowController]);
+app.controller("CardsController", ["$scope", "$http", "$filter", CardsController]);
+app.controller("AddTextController", ["$scope", AddTextController]);
+app.controller("DownloadLogoController", ["$scope", "$http", DownloadLogoController]);
+app.controller("NewLogoController", ["$scope", NewLogoController]);
+app.controller("LoginController", ["$scope", "$http", LoginController]);
+app.controller("ObjectsController", ["$scope", ObjectsController]);
+app.controller("ConfirmationController", ["$scope", ConfirmationController]);
+app.controller("ModifyController", ['$scope', 'Command', ModifyController]);
+app.controller("FontSelectionController", ['$scope', FontSelectionController]);
+app.controller("TextController", ['$scope', TextController]);
+app.controller("FeedbackController", ["$scope", FeedbackController]);
+app.controller("RenameController", ['$scope', RenameController]);
+app.controller("SymbolColorController", ["$scope", SymbolColorController]);
+app.controller("WelcomeController", ["$scope", "$http", WelcomeController]);
+app.controller("InitController", ["$scope", "$http", InitController]);
+
+app.directive('ngHold', ['$timeout', function($timeout) {
+    return {
+        restrict: 'A',
+        link: function(scope, el, attrs) {
+            var isHolding, intervalId, timeoutId;
+
+            el.on('mousedown', function($event) {
+                scope.$event = $event;
+                isHolding = true;
+                clearTimeout(timeoutId);
+                clearInterval(intervalId);
+                // todo: implement timeout passing via attribute like here:
+                // https://github.com/angular-ui/angular-ui/blob/master/modules/directives/keypress/keypress.js
+                timeoutId = setTimeout(function() {
+                    intervalId = setInterval(function() {
+                        if(isHolding) {
+                        scope.$apply(attrs.ngHold);
+                        }
+                    }, 50);
+                }, 200);
+            });
+
+            el.on('mouseup', function() {
+                isHolding = false;
+                if(intervalId) {
+                    clearInterval(intervalId);
+                    clearTimeout(timeoutId);
+                    intervalId = null;
+                    timeoutId = null;
+                }
+            });
+
+            el.on('mouseleave', function() {
+                isHolding = false;
+                if(intervalId) {
+                    clearInterval(intervalId);
+                    clearTimeout(timeoutId);
+                    intervalId = null;
+                    timeoutId = null;
+                }
+            });
+
+        }
+    };
+}]);
+
+app.directive('keyTrap', function() {
+    return function( scope, elem ) {
+        elem.bind('keydown', function(event) {
+            scope.$broadcast('keydown', { code: event.keyCode } );
+        });
+    };
+});
+
+app.directive('errSrc', function() {
+      return {
+        link: function(scope, element, attrs) {
+          element.bind('error', function() {
+            if (attrs.src != attrs.errSrc) {
+              attrs.$set('src', attrs.errSrc);
+            }
+          });
+        }
+    };
+});
+
+// app.factory("debounce", ["$timeout", debounceFactory]);
+
+var NgApp = (function() {
+    function NgApp(name) {
+        var ext = [];
+        for(var _i = 1; _i < arguments.length; _i++) {
+            ext[_i - 1] = arguments[_i];
+        }
+        this.app = angular.module(name, ext);
+    }
+    NgApp.prototype.addController = function(controllerClass) {
+        controllerClass.ext.push('$scope', '$cmd', '$msg', '$compile');
+        controllerClass.ext.push(controllerClass);
+        this.app.controller(controllerClass.name, controllerClass.ext);
+    };
+    return NgApp;
+})();
+
+var NgController = (function() {
+    function NgController($scope, $cmd, $msg, $$compile) {
+        this.$scope = $scope;
+        this.$cmd = $cmd;
+        this.$msg = $msg;
+        this.$compile = $compile;
+    }
+    NgController.ext = [];
+    return NgController;
+})();

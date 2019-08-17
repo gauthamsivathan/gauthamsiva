@@ -1,0 +1,163 @@
+/** @class Command */
+var Command = (function() {
+
+    function Command() {
+        this.history = [];
+        this.index = 0;
+        this.commandMap = new Map();
+        this.undoMap = new Map();
+        this.callerMap = new Map();
+        $cmd = this;
+        msg.on('clear-history', this.clear, this);
+    }
+
+    /**
+    * @description store an action when called.
+    * @param name {string} name of the action stored.
+    */
+    Command.prototype.store = function(name) {
+        // cleaning up when it's starting a new pile
+        if (this.index === 0) {
+          this.clear();
+        }
+        var args = [];
+        for(var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
+        if(this.index < this.history.length) {
+            this.history.splice(this.index, this.history.length - 1);
+        }
+        this.history.push({ name: name, args: args });
+        var func = this.commandMap[name];
+        if(!func) {
+            console.warn("unregistered command: " + name);
+        }
+        this.index = this.history.length;
+
+        this.updateUndoRedoState();
+    };
+
+    /**
+    * @description called when transform an object. Thus, it store the action.
+    * @param name {string} name of the action
+    */
+    Command.prototype.run = function(name) {
+        // cleaning up when it's starting a new pile
+        if (this.index === 0) {
+          this.clear();
+        }
+        var args = [];
+        for(var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
+        if(this.index < this.history.length) {
+            this.history.splice(this.index, this.history.length - 1);
+        }
+        this.history.push({ name: name, args: args });
+        var func = this.commandMap[name];
+        if(func) {
+            func.apply(this.callerMap[name], args);
+        }
+        else {
+            console.warn("unregistered command: " + name);
+        }
+        this.index = this.history.length;
+        this.updateUndoRedoState();
+    };
+
+    Command.prototype.map = function(name, callback, caller, undoType) {
+        this.commandMap[name] = callback;
+        this.callerMap[name] = caller;
+        if(undoType != null) {
+            this.setUndoType(name, undoType);
+        }
+    };
+
+    Command.prototype.setUndoType = function(name, type) {
+        this.undoMap[name] = type;
+    };
+
+    Command.prototype.mapUndo = function(name, callback) {
+        this.undoMap[name] = callback;
+    };
+
+    Command.prototype.undo = function() {
+        if(!this.index) {
+            return;
+        }
+        this.index--;
+        var action = this.history[this.index];
+        var func = this.undoMap[action.name];
+
+        this.updateUndoRedoState();
+        if(func === null || func === undefined)
+            return;
+
+        var fnDo = this.commandMap[action.name]; // why repeat fnDo ?
+        switch (func) {
+            case 0 /* SWITCH */:
+                //var fnDo = this.commandMap[action.name];
+                fnDo.call(this.callerMap[action.name], action.args[0], action.args[2], action.args[1]);
+                break;
+            case 1 /* INVERT */:
+                //var fnDo = this.commandMap[action.name];
+                fnDo.call(this.callerMap[action.name], action.args[0], -(action.args[1]), -(action.args[2]));
+                break;
+            case 2 /* FACTOR */:
+                //var fnDo = this.commandMap[action.name];
+                fnDo.call(this.callerMap[action.name], action.args[0], 1 / action.args[1], 1 / action.args[2]);
+                break;
+            case 3 /* SKIP */:
+                this.undo();
+                break;
+            case 4 /* REVERT */:
+                //var fnDo = this.commandMap[action.name];
+                fnDo.call(this.callerMap[action.name], action.args[1], action.args[0]);
+                break;
+            default:
+                func.apply(this.callerMap[action.name], action.args);
+                break;
+        }
+
+        canvas.renderAll();
+    };
+
+    Command.prototype.redo = function() {
+        if(this.index >= this.history.length) {
+            return;
+        }
+
+        var action = this.history[this.index];
+        var funcUndo = this.undoMap[action.name];
+        if(funcUndo == 3 /* SKIP */) {
+            this.index++;
+            this.redo();
+            return;
+        }
+
+        var func = this.commandMap[action.name];
+
+        if(func) {
+            func.apply(this.callerMap[action.name], action.args);
+        }
+        else {
+            console.warn("unregistered redo: " + name);
+        }
+
+        this.index++;
+        this.updateUndoRedoState();
+
+        canvas.renderAll();
+    };
+
+    Command.prototype.updateUndoRedoState = function() {
+        msg.send('update-undo-redo-state', this.index > 0, this.index < this.history.length);
+    };
+
+    Command.prototype.clear = function() {
+        this.history = [];
+        this.index = 0;
+    };
+
+    return Command;
+})();

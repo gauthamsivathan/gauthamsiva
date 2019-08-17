@@ -1,0 +1,208 @@
+.switch {
+  background: #fff;
+  border: 1px solid #dfdfdf;
+  position: relative;
+  display: inline-block;
+  box-sizing: content-box;
+  overflow: visible;
+  width: 52px;
+  height: 30px;
+  padding: 0px;
+  
+  border-radius: 20px;
+  cursor: pointer;
+  box-shadow: rgb(223, 223, 223) 0px 0px 0px 0px inset;
+  transition: 0.3s ease-out all;
+  -webkit-transition: 0.3s ease-out all;
+  top: 10px;
+}
+.switchpng {
+    
+}
+.switches-controller {
+        margin-top:10px;
+}
+.textpng {
+        position: absolute;
+        margin-top:30px;
+        margin-left: 57px;
+        font-size: 18px;
+}
+
+.switchjpg {
+   
+}
+.textjpg {
+         position: absolute;
+       	 margin-left:339px;
+         margin-top:30px;
+         font-size: 18px;
+}
+
+
+.switchsvg {
+   
+}
+.textsvg {  
+       
+    position: absolute;
+    margin-left: 58px;
+    margin-top: 160px;
+    font-size: 18px;
+}
+
+
+.switcheps {
+  
+}
+.texteps {
+        position: absolute;
+        margin-left:340px;
+         margin-top:160px;
+         font-size: 18px;
+}
+
+.text300 {
+    position: absolute;
+    margin-top: 70px;
+    margin-left: 62px;
+    font-size: 13px;
+}
+.text300right {
+	
+	 position: absolute;
+    margin-top: 70px;
+    margin-left: 343px;
+    font-size: 13px;
+}
+
+.switchtext300 {
+	width: 40px;
+    height: 19px;
+	
+}
+.text500 {
+    position: absolute;
+    margin-left: 62px;
+    margin-top: 98px;
+    font-size: 13px;
+}
+
+.text500right {
+	
+	 position: absolute;
+    margin-top: 98px;
+    margin-left: 343px;
+    font-size: 13px;
+}
+.switchtext500 {
+	width: 40px;
+    height: 19px;
+}
+
+.text2000 {
+    position: absolute;
+    margin-left: 53px;
+    margin-top: 130px;
+    font-size: 13px;
+}
+.text2000right {
+	
+	 position: absolute;
+    margin-top: 130px;
+    margin-left: 336px;
+    font-size: 13px;
+}
+
+.switchtext2000 {
+	width: 40px;
+    height: 19px;
+	
+}
+
+
+
+.switchtextleft {
+    position: absolute;
+    margin-left: 30px;
+    margin-top: 8px;
+    font-size: 15px;
+}
+.switchtextright {
+    position: absolute;
+    margin-left: 320px;
+    margin-top: 8px;
+    font-size: 15px;
+}
+/*adding a wide width for larger switch text*/
+.switch.wide {
+  width:80px;
+}
+.switch small {
+  background: #fff;
+  border-radius: 100%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  width: 29px;
+  height: 28px;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  transition: 0.3s ease-out all;
+  -webkit-transition: 0.3s ease-out all;
+}
+.tiny {
+	width: 17px !important;
+	height: 17px !important;
+	
+}
+.switch.checked {
+  background: rgb(205, 92, 92);
+  border-color: rgb(205, 92, 92);
+}
+.switch.checked small {
+  left: 22px;
+}
+.switch.checked.tiny small {
+  left: 20px;
+}
+/*wider switch text moves small further to the right*/
+.switch.wide.checked small {
+  left:52px;
+}
+/*styles for switch-text*/
+.switch .switch-text {
+  font-family:Arial, Helvetica, sans-serif;
+  font-size:13px;
+}
+
+.switch .off {
+  display:block;
+  position: absolute;
+  right: 10%;
+  top: 25%;
+  z-index: 0;
+  color:#A9A9A9;
+}
+
+.switch .on {
+  display:none;
+   z-index: 0;
+  color:#fff;
+  position: absolute;
+  top: 25%;
+  left: 9%;
+}
+
+.switch.checked .off {
+  display:none;
+}
+
+.switch.checked .on {
+  display:block;
+
+}
+
+.switch.disabled {
+  opacity: .50;
+  cursor: not-allowed;
+}

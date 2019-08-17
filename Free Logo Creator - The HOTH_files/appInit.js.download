@@ -1,0 +1,205 @@
+var __extends = this.__extends || function(d, b) {
+    for(var p in b) if(b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    __.prototype = b.prototype;
+    d.prototype = new __();
+};
+var Base64Binary = {
+    _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+    /* will return a  Uint8Array type */
+    decodeArrayBuffer: function(input) {
+        var bytes = (input.length / 4) * 3;
+        var ab = new ArrayBuffer(bytes);
+        this.decode(input, ab);
+        return ab;
+    },
+    encode : function (input) {
+
+
+        var output = "";
+
+
+        var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+
+
+        var i = 0;
+        
+        input = Base64Binary._utf8_encode(input);
+        
+        while (i < input.length) {
+        	
+            chr1 = input.charCodeAt(i++);
+
+
+            chr2 = input.charCodeAt(i++);
+
+
+            chr3 = input.charCodeAt(i++);
+            
+            enc1 = chr1 >> 2;
+
+
+            enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+
+
+            enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+
+
+            enc4 = chr3 & 63;
+
+            if (isNaN(chr2)) {
+
+
+                enc3 = enc4 = 64;
+
+
+            } else if (isNaN(chr3)) {
+                enc4 = 64;
+            }
+
+
+            output = output +
+
+            this._keyStr.charAt(enc1) + this._keyStr.charAt(enc2) +
+
+
+            this._keyStr.charAt(enc3) + this._keyStr.charAt(enc4);
+
+ 
+
+
+        }
+        return output;
+
+
+    },
+    _utf8_encode : function (string) {
+
+
+        string = string.replace(/\r\n/g,"\n");
+
+
+        var utftext = "";
+
+ 
+
+
+        for (var n = 0; n < string.length; n++) {
+
+ 
+
+
+            var c = string.charCodeAt(n);
+
+ 
+
+
+            if (c < 128) {
+
+
+                utftext += String.fromCharCode(c);
+
+
+            }
+
+
+            else if((c > 127) && (c < 2048)) {
+
+
+                utftext += String.fromCharCode((c >> 6) | 192);
+
+
+                utftext += String.fromCharCode((c & 63) | 128);
+
+
+            }
+
+
+            else {
+
+
+                utftext += String.fromCharCode((c >> 12) | 224);
+
+
+                utftext += String.fromCharCode(((c >> 6) & 63) | 128);
+
+
+                utftext += String.fromCharCode((c & 63) | 128);
+
+
+            }
+
+ 
+
+
+        }
+
+ 
+
+
+        return utftext;
+
+
+    },
+    decode: function(input, arrayBuffer) {
+        // Get last chars to see if are valid
+        var lkey1 = this._keyStr.indexOf(input.charAt(input.length - 1));
+        var lkey2 = this._keyStr.indexOf(input.charAt(input.length - 2));
+        var bytes = (input.length / 4) * 3;
+        if(lkey1 == 64)
+            bytes--; // Padding chars, so skip
+        if(lkey2 == 64)
+            bytes--; // Padding chars, so skip
+        var uarray;
+        var chr1, chr2, chr3;
+        var enc1, enc2, enc3, enc4;
+        var i = 0;
+        var j = 0;
+        if(arrayBuffer)
+            uarray = new Uint8Array(arrayBuffer);
+        else
+            uarray = new Uint8Array(bytes);
+        input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+        for(i = 0; i < bytes; i += 3) {
+            // Get the 3 octets in 4 ASCII chars
+            enc1 = this._keyStr.indexOf(input.charAt(j++));
+            enc2 = this._keyStr.indexOf(input.charAt(j++));
+            enc3 = this._keyStr.indexOf(input.charAt(j++));
+            enc4 = this._keyStr.indexOf(input.charAt(j++));
+            chr1 = (enc1 << 2) | (enc2 >> 4);
+            chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+            chr3 = ((enc3 & 3) << 6) | enc4;
+            uarray[i] = chr1;
+            if(enc3 != 64)
+                uarray[i + 1] = chr2;
+            if(enc4 != 64)
+                uarray[i + 2] = chr3;
+        }
+        return uarray;
+    }
+};
+var $cmd;
+var $msg;
+window.colorpicker = { controller: "", visible: false, containers: ['.text-picker', '.shadow-picker'] };
+function scopeApply(scope) {
+    try {
+        scope.$apply();
+    }
+    catch (e) {
+    }
+}
+var DataService = (function() {
+    function DataService() {
+    }
+    DataService.prototype.get = function() {
+        return this.content;
+    };
+    return DataService;
+})();
+var UndoType;
+(function(UndoType) {
+    UndoType[UndoType["SWITCH"] = 0] = "SWITCH";
+    UndoType[UndoType["INVERT"] = 1] = "INVERT";
+    UndoType[UndoType["FACTOR"] = 2] = "FACTOR";
+    UndoType[UndoType["SKIP"] = 3] = "SKIP";
+})(UndoType || (UndoType = {}));

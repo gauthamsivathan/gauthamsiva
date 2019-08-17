@@ -1,0 +1,84 @@
+/** @class Command */
+var CurrencyService = (function() {
+
+	function CurrencyService() {
+		var _this = this;
+		//Currencies table
+		var translateTableCurrencies = {
+			'us': 'usd',
+			'br': 'brl',
+			'uk': "eur",
+			'it': "eur",
+			'fr': "eur",
+			'sp': "eur",
+		}
+
+		var translateTableValues = {
+			'us': '29',
+			'br': '49',
+			'uk': '29',
+			'it': '29',
+			'fr': '29',
+			'sp': '29',
+		}
+
+		var translateTableSymbols = {
+			'us': '$',
+			'br': 'R$',
+			'uk': '€',
+			'it': '€',
+			'fr': '€',
+			'sp': '€',
+		}
+
+		_this.currentCurrency = 'usd';
+		_this.currentValuesStripe = '2900';
+		_this.currentValuesPaypal = '29.00';
+		_this.currentCurrencySymbol = '$';
+		_this.currentValueNoSign = '29' + _this.currentCurrencySymbol;
+		_this.overPriced = '49' + _this.currentCurrencySymbol;
+	
+ 
+		$.getJSON('//freegeoip.net/json/?callback=?', function(data) {
+			//If the parameter does not exists, or there was an error or too many calls over an hour period
+			if (!data.country_code) {
+				_this.currentCurrency = 'usd';
+			}
+			//If it does not exist in the table
+			else if (!translateTableCurrencies[data.country_code.toLowerCase()]) {
+				_this.currentCurrency = 'usd';
+			}
+			//Change the currency
+			else {
+
+			
+				_this.currentCurrency = translateTableCurrencies[data.country_code.toLowerCase()];
+
+				_this.currentValuesStripe = translateTableValues[data.country_code.toLowerCase()] + '00';
+
+				_this.currentValuesPaypal = translateTableValues[data.country_code.toLowerCase()] + '.00';
+
+				_this.currentValueNoSign =  translateTableSymbols[data.country_code.toLowerCase()] + translateTableValues[data.country_code.toLowerCase()];
+
+				_this.currentCurrencySymbol = translateTableSymbols[data.country_code.toLowerCase()];
+
+				_this.overPriced  = (Number (translateTableValues[data.country_code.toLowerCase()]) + 20).toString () + _this.currentCurrencySymbol;
+
+				var testPrice = Tools.QueryString();
+				if (testPrice.p == 'true' && (data.country_code.toLowerCase() == 'us') ){
+				_this.currentValuesStripe = '4900';
+				_this.currentValuesPaypal = '49.00';
+				
+				}
+
+			}
+		});
+
+
+
+	}
+
+
+
+	return CurrencyService;
+})();

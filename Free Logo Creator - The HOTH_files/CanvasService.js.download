@@ -1,0 +1,862 @@
+/** @class CanvasService */
+var CanvasService = (function() {
+    function CanvasService(canvas) {
+        var _this = this;
+        this.activeSelection = false;
+        this.idIndex = 0;
+        this.children = [];
+        this.selection = [];
+        this.activeGroup = {};
+        this.activePaths = [];
+        this.activePathsColor = new fabric['Color']('rgba(0,0,0,1)');
+        this.activeStrokeColor = new fabric['Color']('rgba(0,0,0,1)');
+        this.alpha = 0;
+        this.alphaModifier = 0.04;
+        window.renderAnimationFrame;
+
+        this.renderLoop = function() {
+            if (_this.alpha > 0.97) {
+                _this.alphaModifier = -0.03;
+            } else if (_this.alpha < 0.06) {
+                _this.alphaModifier = 0.03;
+            }
+            _this.alpha += _this.alphaModifier;
+            for (var i = 0; i < _this.activePaths.length; i++) {
+                _this.activePaths[i].setOpacity(_this.alpha);
+            }
+            _this.root.renderAll();
+            window.renderAnimationFrame = window.requestAnimationFrame(_this.renderLoop);
+        };
+        this.onMouseDown = function(options) {
+            _this.root.renderAll();
+
+
+            _this.reSetVisibilityGroup();
+            if (!_this.activeSelection) {
+                return;
+            }
+            // Restore opacity of each time.
+            _this.reSetVisibilityGroup();
+
+            var dobj = $canvas.selection[0];
+
+            // Opacity only for grouped symbol objects.
+            if (dobj !== null && dobj !== undefined && dobj.type == DOType.SYMBOL) {
+                // This makes us able to select invisible objects.
+                // Loops through each parent and child objects set's their opacity to 1
+                // once that happens we can easily detect an object from its color.
+                // For now it should be sufficient.
+                dobj.raw.getObjects().forEach(function(p) {
+                    p.setOpacity(1);
+                    if (p.hasOwnProperty('invisible')) {
+                        if (p.invisible) {
+                            p.setOpacity(1);
+                        }
+                    }
+                });
+                _this.root.renderAll();
+
+                var mousePos = _this.root.getPointer(options.e);
+                mousePos.x = parseInt(mousePos.x);
+                mousePos.y = parseInt(mousePos.y);
+
+                var width = _this.root.getWidth();
+                var height = _this.root.getHeight();
+                var pixels = _this.root.getContext().getImageData(0, 0, width, height);
+                var pixel = (mousePos.x + mousePos.y * pixels.width) * 4;
+
+                var fabricRgb = 'rgb(' + pixels.data[pixel] + ',' + pixels.data[pixel + 1] + ',' + pixels.data[pixel + 2] + ')';
+
+                _this.activeStrokeColor = false;
+                _this.activePathsColor = new fabric['Color'](fabricRgb);
+
+                var colorHex = '#' + _this.activePathsColor.toHex().toLowerCase();
+
+                // We detect the child object of a group from it's color
+                // For now it should be sufficient.
+                _this.activePaths = [];
+                if (dobj.type == DOType.SYMBOL) {
+                    for (var i = 0; i < dobj.raw.getObjects().length; i++) {
+
+                        var path = dobj.raw.getObjects()[i];
+
+                        // Did we find a path coolor?
+
+                        if (typeof path.getFill() == 'string') {
+                            pathColor = path.getFill().toLowerCase();
+                        }
+
+                        // console.log('0 ' + pathColor);
+
+                        // Do we have more complicated path colors?
+
+                        if (typeof path.getFill() == 'object') {
+                            if (path.getFill().type == 'linear' || path.getFill().type == 'radial') {
+
+                                // Get the first color for now
+                                pathColor = path.getFill().colorStops[0].color.toLowerCase();
+
+                                // Replace linear or radial colors with a single straight color
+                                path.fill = pathColor;
+                            }
+                        }
+
+                        // console.log('1 ' + pathColor);
+
+                        if (pathColor.indexOf('#') < 0) {
+
+                            // Rgb/a
+                            if (pathColor.indexOf('rgb') > -1) {
+                                pathColor = ('#' + rgb2hex(pathColor));
+
+                                // Human readable colors
+                            } else {
+                                pathColor = colourName2Hex(pathColor);
+                            }
+
+                        } else {
+
+                            pathColor = shortHandHexToHex(pathColor).vhexl;
+                        }
+
+                        // console.log('2 ' + pathColor);
+
+                        // Did we find a path color?
+
+                        if (typeof path.getStroke() == 'string') {
+                            if (pathColor != colorHex) {
+
+                                if (typeof path.getStroke() == 'string') {
+                                    pathColor = path.getStroke().toLowerCase();
+                                    pathColor = shortHandHexToHex(pathColor).vhexl;
+
+                                    if (pathColor == colorHex) {
+                                        _this.activeStrokeColor = pathColor;
+                                    } else {
+                                        _this.activeStrokeColor = false;
+                                    }
+
+                                }
+
+                            } else {
+                                _this.activeStrokeColor = false;
+                            }
+                        }
+
+                        // console.log('3 ' + pathColor);
+
+                        // console.log(pathColor, colorHex, path);
+
+                        if (pathColor == colorHex) {
+                            _this.activePaths.push(path);
+                        }
+
+                    }
+                    dobj.raw.getObjects().forEach(function(p) {
+                        p.setOpacity(1);
+                        if (p.hasOwnProperty('invisible')) {
+                            if (p.invisible) {
+                                p.setOpacity(0);
+                            }
+                        }
+                    });
+                    _this.root.renderAll();
+                    $msg.send('paths-selected', dobj);
+                    window.cancelRequestAnimFrame(window.renderAnimationFrame);
+                    window.renderAnimationFrame = window.requestAnimationFrame(_this.renderLoop);
+
+                } else {
+                    window.cancelRequestAnimFrame(window.renderAnimationFrame);
+                }
+
+
+            } else {
+                _this.reSetVisibilityGroup();
+                window.cancelRequestAnimFrame(window.renderAnimationFrame);
+            }
+
+            // Selection colors
+            canvas.forEachObject(function(o) {
+                o.borderColor = invertColor(document.getElementById('grid').backgroundColor);
+                o.cornerColor = invertColor(document.getElementById('grid').backgroundColor);
+                o.selectionLineWidth = 40;
+            });
+
+        };
+        this.clearSelection = function() {
+            DomHelper.disableWorkingPanel();
+
+            _this.reSetVisibilityGroup();
+
+            window.cancelRequestAnimFrame(window.renderAnimationFrame);
+            $canvas.activeSelection = false;
+        };
+        this.wrapPaths = function(path) {
+            var paths = [];
+            var object = {};
+            object = canvas.getActiveObject();
+
+            if (!object) {
+                return;
+            }
+            if (object.type == 'text' || object.type == 'i-text') {
+                return;
+            }
+            if (object.getAngle() !== 0) {
+                return;
+            }
+
+            paths = $canvas.activePaths || [path];
+
+            for (var i = 0; i < paths.length; i++) {
+                paths[i].borders = {
+                    left: (paths[i].left * object.scaleX) - (object.getAngle()),
+                    top: (paths[i].top * object.scaleY) - (object.getAngle()),
+                    fill: '',
+                    width: paths[i].width * object.scaleX,
+                    height: paths[i].height * object.scaleY,
+                    stroke: 'black',
+                    opacity: 0, // Set to 0.5 to see it in action
+                    selectable: false,
+                    angle: object.getAngle()
+                };
+                canvas.add(
+                    new fabric.Rect(paths[i].borders)
+                );
+                canvas.renderAll();
+            }
+        };
+        this.clearPathWrapper = function() {
+            canvas.getObjects('rect').forEach(function(o) {
+                o.remove();
+            });
+        };
+        this.renderPathWrapper = function() {
+            _this.clearPathWrapper();
+            _this.wrapPaths();
+        };
+
+
+        // Canvas
+
+        this.root = canvas;
+
+        // Event handlers
+
+        canvas.on('mouse:down', this.onMouseDown);
+        canvas.on('selection:cleared', this.clearSelection);
+
+        this.root.on('object:selected', function(e) {
+            $canvas.activeSelection = true;
+
+            var dobj = _this.getByRaw(e.target);
+            if (dobj !== null) {
+                msg.send('object-selected', dobj);
+                _this.selection = [dobj];
+            }
+            _this.reSetVisibility(dobj);
+        });
+
+        // Stack
+
+        $cmd.map('add-object', this.add, this);
+        $cmd.mapUndo('add-object', function(rawobj) {
+            var dobj = this.getByRaw(rawobj);
+            if (dobj !== null) {
+                this.remove(dobj);
+            }
+        });
+
+        $cmd.map('add', this.add, this, 3 /* SKIP */ );
+        $cmd.mapUndo('add', this.remove);
+        $cmd.map('remove', this.remove, this);
+        $cmd.mapUndo('remove', this.add, this);
+        $cmd.map('remove-all', this.removeAll, this);
+
+        $cmd.map('shadow', this.shadow, this, 0 /* SWITCH */ );
+        $cmd.map('glow', this.glow, this, 0 /* SWITCH */ );
+        $cmd.map('stroke', this.stroke, this, 4 /* REVERT */ );
+        $cmd.map('symbol-color', this.symbolColor, this, 0 /* SWITCH */ );
+        $cmd.map('symbol-transparency', this.toggleVisibility, this, 0 /* SWITCH */ );
+        $cmd.map('symbol-visibility', this.toggleVisibility, this, 0 /* SWITCH */ );
+
+        // Fade in/out Animation
+
+        window.renderAnimationFrame = window.requestAnimationFrame(this.renderLoop);
+    }
+
+    /**
+     * @function CanvasService.create
+     * @param type {DOType}
+     * @param object {object}
+     * @param clone
+     * @param shadow
+     */
+    CanvasService.prototype.create = function(type, object, clone, shadow) {
+        var dobj = new DisplayObject();
+        var padding = {
+            top: 40,
+            left: 40
+        };
+        var color = {};
+
+        dobj.id = this.idIndex++;
+        dobj.type = type;
+        dobj.name = "OBJECT" + this.idIndex;
+        if (object.isCard)
+            dobj.isCard = true;
+
+        // Symbol
+
+        if (type == DOType.SYMBOL) {
+
+            var currentObjs = canvas.getObjects();
+
+            // obect.getObjects()
+            var objects = object.getObjects();
+
+            dobj.raw = $.extend(true, {}, object);
+
+            // If the clone has shadow
+            if (objects[0].shadow) {
+                dobj.shadow = shadow;
+                dobj.shadow.enabled = true;
+            }
+
+            if (!clone) {
+
+                // fabric.Group
+                // fabric.PathGroup
+                dobj.raw = new fabric.PathGroup(objects, {
+                    toBeParsed: true,
+                    top: 0,
+                    left: 0,
+                    // width: 295,
+                    // height: 211,
+                    padding: 0
+                });
+
+                if (currentObjs.length > 0) {
+                    var lastObj = currentObjs[currentObjs.length - 1];
+                    dobj.raw.set("top", lastObj.top + padding.top);
+                    dobj.raw.set("left", lastObj.left + padding.left);
+                } else {
+                    dobj.raw.set("top", padding.top);
+                    dobj.raw.set("left", padding.left);
+                }
+
+            }
+
+            // fill
+            // shadow.color
+            color.id = dobj.id,
+                color.raw = JSON.stringify(object);
+            color.fill = object.fill;
+            color.stroke = object.stroke;
+            color.shadow = dobj.shadow;
+            $oColors.push(color);
+
+            // fill
+            // shadow.color
+            for (var i = 0; i < objects.length; i++) {
+                color = {};
+                color.id = dobj.id.toString() + i.toString();
+                color.raw = JSON.stringify(objects[i]);
+                color.fill = objects[i].fill;
+                color.stroke = objects[i].stroke;
+                color.shadow = dobj.shadow;
+                $oColors.push(color);
+            }
+
+            // quick fix: if the first element, give us the width of the
+            // objects menu, so that it won't be covered by it.
+            if (!$canvas.getObjects().length) {
+                dobj.raw.set("left", parseInt($('.object-option').css('width')) + 300);
+                dobj.raw.set("top", 100);
+            }
+
+            return dobj;
+        }
+
+        // Others
+        else {
+
+            // Cloned Objects
+            if (object.shadow) {
+                dobj.shadow = shadow;
+                dobj.shadow.enabled = object.shadow ? true : false;
+            }
+
+            // fill
+            // shadow.color
+            color.id = dobj.id,
+                color.raw = JSON.stringify(object);
+            color.fill = object.fill;
+            color.stroke = object.stroke;
+            color.shadow = dobj.shadow;
+            $oColors.push(color);
+
+            dobj.raw = object;
+        }
+
+        // quick fix: if the first element, give us the width of the
+        // objects menu, so that it won't be covered by it.
+        if (!$canvas.getObjects().length) {
+            dobj.raw.set("left", parseInt($('.object-option').css('width')) + 300);
+            dobj.raw.set("top", 100);
+            canvas.renderAll();
+        }
+
+        return dobj;
+    };
+    CanvasService.prototype.duplicate = function() {
+        $cmd.run('duplicate');
+    };
+    /**
+     * @description it adds a new object just like the dobj passed as argument.
+     * @function CanvasService.add
+     * @param dobj {Object} the model
+     * @param clone {Object} object which will be placed the clone
+     * @param x {int}
+     * @param y {int}
+     */
+    CanvasService.prototype.add = function(dobj, clone, x, y, w, h) {
+        var that = this;
+        dobj.selected = true;
+        this.children.unshift(dobj);
+        this.selection.unshift(dobj);
+
+        if (clone === undefined) {
+            clone = dobj;
+        }
+
+        if (clone) {
+            if (dobj.raw.type == 'group') {
+
+                dobj.raw.clone(function(cobj) {
+                    dobj.raw = cobj;
+
+                    if (x && y) {
+                        cobj.set("top", cobj.top + x);
+                        cobj.set("left", cobj.left + y);
+                    }
+
+                    cobj.getObjects().forEach(function(o) {
+                        o.opacity = 1; // Reset opacity
+                    });
+
+                    that.select(dobj);
+                    that.root.add(dobj.raw).renderAll();
+                });
+
+            } else {
+
+                if (x && y) {
+                    dobj.raw.set("top", dobj.raw.top + x);
+                    dobj.raw.set("left", dobj.raw.left + y);
+                }
+
+                this.root.add(dobj.raw).renderAll();
+                this.select(dobj);
+
+                this.root.calcOffset();
+            }
+
+            // Selection colors
+            canvas.forEachObject(function(o) {
+                o.borderColor = invertColor(document.getElementById('grid').backgroundColor);
+                o.cornerColor = invertColor(document.getElementById('grid').backgroundColor);
+                o.selectionLineWidth = 40;
+            });
+
+            canvas.renderAll();
+
+            return;
+        }
+
+        if (dobj.raw.type == 'group' || dobj.raw.type == 'path-group') {
+            // Set default scaling
+            if (w && h) {
+                dobj.raw.set({
+                    scaleX: w / dobj.raw.width,
+                    scaleY: h / dobj.raw.width
+                });
+            } else {
+                dobj.raw.set({
+                    scaleX: DODefaults.SCALE / dobj.raw.width,
+                    scaleY: DODefaults.SCALE / dobj.raw.width
+                });
+            }
+
+        } else if (dobj.raw.type == 'i-text') {
+            if (w && h) {
+                dobj.raw.set({
+                    scaleX: w / dobj.raw.width,
+                    scaleY: h / dobj.raw.height
+                });
+            }
+
+        }
+
+        if (x) {
+            dobj.raw.set("left", x);
+        }
+        if (y) {
+            dobj.raw.set("top", y);
+        }
+
+        this.select(dobj);
+        this.root.add(dobj.raw).renderAll();
+
+        if (($canvas.getLastObj().top + $canvas.getLastObj().height + 80 > canvas.height) && !(x && y)) {
+            $canvas.getLastObj().top = 50;
+            $canvas.getLastObj().setCoords();
+        }
+
+        // Selection colors
+        canvas.forEachObject(function(o) {
+            o.borderColor = invertColor(document.getElementById('grid').backgroundColor);
+            o.cornerColor = invertColor(document.getElementById('grid').backgroundColor);
+            o.selectionLineWidth = 40;
+        });
+
+        this.root.calcOffset();
+        this.root.renderAll();
+    };
+    CanvasService.prototype.select = function(dobj) {
+        this.unselectAll();
+        dobj.selected = true;
+        canvas.setActiveObject(dobj.raw);
+
+        $canvas.activePaths = [];
+        $msg.send('object-selected', dobj);
+    };
+    CanvasService.prototype.selectAll = function() {
+        canvas.selection = true;
+
+        var objs = canvas.getObjects().map(function(o) {
+            return o.set('active', true);
+        });
+
+        this.activeGroup = new fabric.Group(objs, {
+            originX: 'center',
+            originY: 'center',
+            padding: 0
+        });
+
+        canvas._activeObject = null;
+
+        canvas.setActiveGroup(this.activeGroup.setCoords()).renderAll();
+        canvas.selection = false;
+    };
+    CanvasService.prototype.unselectAll = function() {
+        for (var i = 0; i < this.selection.length; i++) {
+            this.selection[i].selected = false;
+        }
+        this.root.deactivateAllWithDispatch();
+    };
+    CanvasService.prototype.getActiveGroup = function() {
+        return this.activeGroup;
+    };
+    CanvasService.prototype.remove = function(dobj) {
+        this.children.splice(this.children.indexOf(dobj), 1);
+        if (dobj.selected) {
+            canvas.deactivateAllWithDispatch().renderAll();
+            this.unselectAll();
+        }
+        this.root.remove(dobj.raw);
+        this.root.renderAll();
+    };
+    CanvasService.prototype.removeAll = function() {
+        for (var i = this.children.length - 1; i >= 0; i--) {
+            if (typeof this.children[i] != 'undefined') {
+                this.root.remove(this.children[i].raw);
+                this.children.splice(i, 1);
+            } else {
+                console.log("undefined: " + i);
+            }
+        }
+    };
+    CanvasService.prototype.rename = function(dobj, newname) {
+        dobj.name = newname;
+    };
+    CanvasService.prototype.shadow = function(dobj, oldshadow, shadow) {
+        dobj.shadow = shadow;
+        if (shadow.enabled) {
+            if (dobj.type.toUpperCase() == DOType.SYMBOL) {
+                // Our drawings are made of multiple objects
+                if (dobj.raw.getObjects().length) {
+                    dobj.raw.getObjects()[0].setShadow(shadow);
+                }
+            } else {
+                dobj.raw.setShadow(shadow);
+            }
+        } else {
+            if (dobj.type.toUpperCase() == DOType.SYMBOL) {
+                if (dobj.raw.getObjects().length) {
+                    dobj.raw.getObjects()[0].setShadow(null);
+                }
+            } else {
+                dobj.raw.setShadow(null);
+            }
+        }
+        this.root.renderAll();
+    };
+    CanvasService.prototype.glow = function(dobj, oldshadow, glow) {
+        dobj.glow = glow;
+        if (glow.enabled) {
+            if (dobj.type.toUpperCase() == DOType.SYMBOL) {
+                // Our drawings are made of multiple objects
+                if (dobj.raw.getObjects().length) {
+                    dobj.raw.getObjects()[0].setShadow(glow);
+                }
+            } else {
+                dobj.raw.setShadow(glow);
+            }
+        } else {
+            if (dobj.type.toUpperCase() == DOType.SYMBOL) {
+                if (dobj.raw.getObjects().length) {
+                    dobj.raw.getObjects()[0].setShadow(null);
+                }
+            } else {
+                dobj.raw.setShadow(null);
+            }
+        }
+        this.root.renderAll();
+    };
+    CanvasService.prototype.stroke = function(oldcolor, newcolor) {
+        for (key in $canvas.activePaths) {
+            $canvas.activePaths[key].stroke = newcolor;
+        }
+    };
+    CanvasService.prototype.getObjects = function() {
+        return canvas.getObjects();
+    };
+    CanvasService.prototype.getObjZindex = function(obj) {
+        return canvas.getObjects().indexOf(obj);
+    };
+    CanvasService.prototype.getPathsByColor = function(dobj, colorHex) {
+        var activePaths = [];
+        for (var i = 0; i < dobj.raw.getObjects().length; i++) {
+            var path = dobj.raw.getObjects()[i];
+
+            if (typeof path.getFill() == 'string') {
+                if (path.getFill().toLowerCase() == colorHex) {
+                    activePaths.push(path);
+                }
+
+                if (path.stroke !== undefined) {
+                    if (path.stroke !== null) {
+                        if ($.isFunction(path.getStroke())) {
+                            if (path.getStroke().toLowerCase() == colorHex) {
+                                activePaths.push(path);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (typeof path.getFill() == 'object') {
+                if (path.getFill().type == 'linear') {
+
+                    // Get only the first one for now
+                    if (path.getFill().colorStops[0].color.toLowerCase() == colorHex) {
+                        activePaths.push(path);
+                    }
+
+                }
+            }
+        }
+        return activePaths;
+    };
+    CanvasService.prototype.pathStrokeColor = function(path, oldcolor, newcolor) {
+        oldcolor = oldcolor.toLowerCase();
+        newcolor = newcolor.toLowerCase();
+        path.setStroke(newcolor);
+        this.root.renderAll();
+    };
+    CanvasService.prototype.pathFillColor = function(path, oldcolor, newcolor) {
+        oldcolor = oldcolor.toLowerCase();
+        newcolor = newcolor.toLowerCase();
+        path.setFill(newcolor);
+        this.root.renderAll();
+    };
+    CanvasService.prototype.symbolColor = function(dobj, oldcolor, newcolor) {
+        oldcolor = oldcolor.toLowerCase();
+        newcolor = newcolor.toLowerCase();
+        var paths = this.getPathsByColor(dobj, oldcolor);
+        for (var i = 0; i < paths.length; i++) {
+            paths[i].setFill(newcolor);
+        }
+        this.root.renderAll();
+    };
+    CanvasService.prototype.symbolTransparency = function(dobj, oldcolor, newOpacity) {
+        oldcolor = oldcolor.toLowerCase();
+        var paths = this.getPathsByColor(dobj, oldcolor);
+        for (var i = 0; i < paths.length; i++) {
+            paths[i].opacity = newOpacity;
+        }
+        this.root.renderAll();
+    };
+    CanvasService.prototype.strokeColor = function(dobj, oldcolor, newcolor) {
+        oldcolor = oldcolor.toLowerCase();
+        newcolor = newcolor.toLowerCase();
+        var paths = this.getPathsByColor(dobj, oldcolor);
+        for (var i = 0; i < paths.length; i++) {
+            paths[i].setStroke(newcolor);
+        }
+        this.root.renderAll();
+    };
+    CanvasService.prototype.toggleVisibility = function(activePaths) {
+        window.cancelRequestAnimFrame(window.renderAnimationFrame);
+        for (var i = 0; i < activePaths.length; i++) {
+            var path = activePaths[i];
+            path.opacity = 0;
+            if (path.hasOwnProperty('invisible')) {
+                path.invisible = !path.invisible;
+                if (!path.invisible) {
+                    $("#transparency-eye").removeClass("fa fa-eye-slash").addClass("fa fa-eye");
+                    $(".symbol-container .symbol-color").show();
+                    path.opacity = 1;
+                } else {
+                    $(".symbol-container .symbol-color").hide();
+                    $("#transparency-eye").removeClass("fa fa-eye").addClass("fa fa-eye-slash");
+                }
+
+            } else {
+                $(".symbol-container .symbol-color").hide();
+                $("#transparency-eye").removeClass("fa fa-eye").addClass("fa fa-eye-slash");
+                path.invisible = true;
+            }
+        }
+        canvas.renderAll();
+    };
+    CanvasService.prototype.setVisibility = function(dobj, opacity) {
+        if (dobj) {
+            dobj = [dobj.raw];
+        } else {
+            dobj = canvas.getObjects();
+        }
+        dobj.forEach(function(parentObj) {
+            parentObj.getObjects().forEach(function(childObj) {
+                if (childObj.hasOwnProperty('invisible')) {
+                    childObj.setOpacity(opacity);
+                }
+            });
+        });
+    };
+    CanvasService.prototype.reSetVisibility = function(dobj) {
+        if (!dobj)
+            return;
+        if (dobj.type == DOType.SYMBOL) {
+            dobj.raw.getObjects().forEach(function(o) {
+                if (o.invisible) {
+                    o.setOpacity(0);
+                }
+            });
+        }
+    };
+    CanvasService.prototype.reSetVisibilityGroup = function() {
+        canvas.getObjects('group').forEach(function(go) {
+            go.getObjects().forEach(function(p) {
+                p.setOpacity(1);
+                if (p.hasOwnProperty('invisible')) {
+                    if (p.invisible) {
+                        p.setOpacity(0);
+                    }
+                }
+            });
+        });
+        canvas.renderAll();
+    };
+    CanvasService.prototype.setShadowColor = function(dobj, color) {
+        if (!dobj.shadow.enabled)
+            return;
+
+        dobj.shadow.color = '#' + color;
+        dobj.raw.setShadow(dobj.shadow);
+        this.root.renderAll();
+    };
+    CanvasService.prototype.getByRaw = function(rawobj) {
+        for (var i = 0; i < this.children.length; i++) {
+            if (rawobj == this.children[i].raw)
+                return this.children[i];
+        }
+        return null;
+    };
+    CanvasService.prototype.getById = function(id) {
+        for (var i = 0; i < this.children.length; i++) {
+            if (id == this.children[i].id)
+                return this.children[i];
+        }
+        return null;
+    };
+    CanvasService.prototype.getActiveObj = function() {
+        var dobj = this.getActiveDobj();
+        if (Object.keys(dobj).length) {
+            return dobj.raw;
+        }
+        return {};
+    };
+    CanvasService.prototype.getActiveDobj = function() {
+        for (var i = 0; i < this.children.length; i++) {
+            if (this.children[i].selected) {
+                return this.children[i];
+            }
+        }
+        return {};
+    };
+    CanvasService.prototype.getFirstObj = function() {
+        var objects = this.getObjects();
+        if (objects.length > 0) {
+            return objects[0];
+        }
+    };
+    CanvasService.prototype.getLastObj = function() {
+        var objects = this.getObjects();
+        if (objects.length > 0) {
+            return objects[objects.length - 1];
+        }
+    };
+    CanvasService.prototype.getFirstDobj = function() {
+        // note: array is unshifted.
+        if (this.children.length > 0) {
+            return this.children[this.children.length - 1];
+        }
+    };
+    CanvasService.prototype.getLastDobj = function() {
+        // note: array is unshifted.
+        if (this.children.length > 0) {
+            return this.children[0];
+        }
+    };
+    CanvasService.prototype.getSelectedPath = function() {};
+    CanvasService.prototype.getOriginColorByObj = function(obj, id) {
+        if (typeof obj == "object") {
+            obj = JSON.stringify(obj);
+        }
+        for (var i = 0; i < $oColors.length; i++) {
+            if ($oColors[i].id === id) {
+                return $oColors[i];
+            }
+        }
+        return {};
+    };
+    CanvasService.prototype.setFillColor = function(obj, id, color) {
+        this.getOriginColorByObj(obj, id).fill = color;
+    };
+    CanvasService.prototype.setStrokeColor = function(obj, id, color) {
+        obj.stroke = color;
+        this.getOriginColorByObj(obj, id).stroke = color;
+        canvas.renderAll();
+    };
+    CanvasService.prototype.setOriginShadowColor = function(obj, id, color) {
+        var _obj = this.getOriginColorByObj(obj, id);
+        if (_obj.shadow === null || isEmptyObj(_obj.shadow)) {
+            var dobj = new DisplayObject();
+            _obj.shadow = dobj.shadow;
+        }
+        _obj.shadow.color = color;
+    };
+    return CanvasService;
+})();

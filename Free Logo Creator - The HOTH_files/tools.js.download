@@ -1,0 +1,1502 @@
+/* js helpers/extensions */
+
+var Tools = {};
+
+/* Integer */
+Number.prototype.round = function(p) {
+    p = p || 10;
+    return parseFloat(this.toFixed(p));
+};
+Number.prototype.toFloat = function(precision) {
+    var finalNumber = this;
+    var split = this.toString().split('.');
+    var start, precision;
+    if (split.length > 1) {
+        start = split[0];
+        precision = split[1].slice(0, precision);
+        finalNumber = start + '.' + precision;
+    }
+    return parseFloat(finalNumber);
+};
+
+/* String */
+String.prototype.firstToUppercase = function() {
+    return this[0].toUpperCase() + this.slice(1, this.length);
+};
+if (!String.prototype.trim) {
+    String.prototype.trim = function() {
+        return this.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
+    };
+}
+String.prototype.allReplace = function(obj) {
+    var retStr = this;
+    for (var x in obj) {
+        retStr = retStr.replace(new RegExp(x, 'g'), obj[x]);
+    }
+    return retStr;
+};
+String.prototype.stringToHtml = function() {
+    return "<h1>" + this + "</h1>";
+};
+
+/* Array */
+Array.prototype.move = function(old_index, new_index) {
+    while (old_index < 0) {
+        old_index += this.length;
+    }
+    while (new_index < 0) {
+        new_index += this.length;
+    }
+    if (new_index >= this.length) {
+        var k = new_index - this.length;
+        while ((k--) + 1) {
+            this.push(undefined);
+        }
+    }
+    this.splice(new_index, 0, this.splice(old_index, 1)[0]);
+    return this; // for testing purposes
+};
+Array.prototype.max = function() {
+    return Math.max.apply(null, this);
+};
+Array.prototype.sum = function() {
+    this.reduce(function(previousValue, currentValue, index, array) {
+        return previousValue + currentValue;
+    });
+};
+Array.prototype.min = function() {
+    return Math.min.apply(null, this);
+};
+
+/* Object */
+function isEmptyObj(obj) {
+    for (var key in obj) {
+        if (obj.hasOwnProperty(key))
+            return false;
+    }
+    return true;
+}
+
+/* Canvas */
+window.cancelRequestAnimFrame = (function() {
+    return window.cancelAnimationFrame ||
+        window.webkitCancelRequestAnimationFrame ||
+        window.mozCancelRequestAnimationFrame ||
+        window.oCancelRequestAnimationFrame ||
+        window.msCancelRequestAnimationFrame ||
+        clearTimeout
+})();
+var setCanvasDimensions = function() {
+    canvas.setWidth(window.innerWidth);
+    canvas.setHeight(window.innerHeight);
+    document.getElementById('grid').width = canvas.getWidth();
+    document.getElementById('grid').height = canvas.getHeight();
+    Tools.organizeLayout();
+    // Reset backgrodund color
+    $cmd.run('background-color', $oCanvasColor.current, $oCanvasColor.current);
+};
+var getImageDataFaster = function(x, y, w, h, W, H, d) {
+    var arr = new Uint32Array(w * h),
+        i = 0;
+
+    for (var r = y; r < h + y; r += 1) {
+        for (var c = x; c < w + x; c += 1) {
+            var O = ((r * W) + c);
+            if (c < 0 || c >= W || r < 0 || r >= H) {
+                arr[i++] = 0;
+            } else {
+                arr[i++] = d[O];
+            }
+        }
+    }
+
+    return arr;
+};
+
+/* Color */
+function rgb2hex(rgb) {
+
+    if (rgb.length > 0 && rgb != undefined) {
+        if (rgb.indexOf('#') == -1) {
+
+            var _rgb = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+))?\)$/);
+
+            function hex(x) {
+                return ("0" + parseInt(x).toString(16)).slice(-2);
+            }
+            if (_rgb) {
+                return hex(_rgb[1]) + hex(_rgb[2]) + hex(_rgb[3]);
+            }
+            return rgb;
+        }
+    }
+
+    return rgb;
+}
+
+function rgba2rgb(rgba) {
+    rgba = rgba.split(',');
+    rgba.splice(rgba.length - 1, 1);
+    rgb = rgba.join(',') + ')';
+    return rgb;
+}
+
+function hex2Rgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+}
+
+function invertColor(hexTripletColor) {
+    if (hexTripletColor == 'fff' ||
+        hexTripletColor == 'ffffff' ||
+        hexTripletColor == '#fff' ||
+        hexTripletColor == '#ffffff') {
+        return;
+    }
+
+    var color = hexTripletColor;
+    color = color.substring(1); // remove #
+    color = parseInt(color, 16); // convert to integer
+    color = 0xFFFFFF ^ color; // invert three bytes
+    color = color.toString(16); // convert to hex
+    color = ("000000" + color).slice(-6); // pad with leading zeros
+    color = "#" + color; // prepend #
+    return color;
+}
+
+function colourName2Hex(colour) {
+    var colours = {
+        "aliceblue": "#f0f8ff",
+        "antiquewhite": "#faebd7",
+        "aqua": "#00ffff",
+        "aquamarine": "#7fffd4",
+        "azure": "#f0ffff",
+        "beige": "#f5f5dc",
+        "bisque": "#ffe4c4",
+        "black": "#000000",
+        "blanchedalmond": "#ffebcd",
+        "blue": "#0000ff",
+        "blueviolet": "#8a2be2",
+        "brown": "#a52a2a",
+        "burlywood": "#deb887",
+        "cadetblue": "#5f9ea0",
+        "chartreuse": "#7fff00",
+        "chocolate": "#d2691e",
+        "coral": "#ff7f50",
+        "cornflowerblue": "#6495ed",
+        "cornsilk": "#fff8dc",
+        "crimson": "#dc143c",
+        "cyan": "#00ffff",
+        "darkblue": "#00008b",
+        "darkcyan": "#008b8b",
+        "darkgoldenrod": "#b8860b",
+        "darkgray": "#a9a9a9",
+        "darkgreen": "#006400",
+        "darkkhaki": "#bdb76b",
+        "darkmagenta": "#8b008b",
+        "darkolivegreen": "#556b2f",
+        "darkorange": "#ff8c00",
+        "darkorchid": "#9932cc",
+        "darkred": "#8b0000",
+        "darksalmon": "#e9967a",
+        "darkseagreen": "#8fbc8f",
+        "darkslateblue": "#483d8b",
+        "darkslategray": "#2f4f4f",
+        "darkturquoise": "#00ced1",
+        "darkviolet": "#9400d3",
+        "deeppink": "#ff1493",
+        "deepskyblue": "#00bfff",
+        "dimgray": "#696969",
+        "dodgerblue": "#1e90ff",
+        "firebrick": "#b22222",
+        "floralwhite": "#fffaf0",
+        "forestgreen": "#228b22",
+        "fuchsia": "#ff00ff",
+        "gainsboro": "#dcdcdc",
+        "ghostwhite": "#f8f8ff",
+        "gold": "#ffd700",
+        "goldenrod": "#daa520",
+        "gray": "#808080",
+        "green": "#008000",
+        "greenyellow": "#adff2f",
+        "honeydew": "#f0fff0",
+        "hotpink": "#ff69b4",
+        "indianred ": "#cd5c5c",
+        "indigo": "#4b0082",
+        "ivory": "#fffff0",
+        "khaki": "#f0e68c",
+        "lavender": "#e6e6fa",
+        "lavenderblush": "#fff0f5",
+        "lawngreen": "#7cfc00",
+        "lemonchiffon": "#fffacd",
+        "lightblue": "#add8e6",
+        "lightcoral": "#f08080",
+        "lightcyan": "#e0ffff",
+        "lightgoldenrodyellow": "#fafad2",
+        "lightgrey": "#d3d3d3",
+        "lightgreen": "#90ee90",
+        "lightpink": "#ffb6c1",
+        "lightsalmon": "#ffa07a",
+        "lightseagreen": "#20b2aa",
+        "lightskyblue": "#87cefa",
+        "lightslategray": "#778899",
+        "lightsteelblue": "#b0c4de",
+        "lightyellow": "#ffffe0",
+        "lime": "#00ff00",
+        "limegreen": "#32cd32",
+        "linen": "#faf0e6",
+        "magenta": "#ff00ff",
+        "maroon": "#800000",
+        "mediumaquamarine": "#66cdaa",
+        "mediumblue": "#0000cd",
+        "mediumorchid": "#ba55d3",
+        "mediumpurple": "#9370d8",
+        "mediumseagreen": "#3cb371",
+        "mediumslateblue": "#7b68ee",
+        "mediumspringgreen": "#00fa9a",
+        "mediumturquoise": "#48d1cc",
+        "mediumvioletred": "#c71585",
+        "midnightblue": "#191970",
+        "mintcream": "#f5fffa",
+        "mistyrose": "#ffe4e1",
+        "moccasin": "#ffe4b5",
+        "navajowhite": "#ffdead",
+        "navy": "#000080",
+        "oldlace": "#fdf5e6",
+        "olive": "#808000",
+        "olivedrab": "#6b8e23",
+        "orange": "#ffa500",
+        "orangered": "#ff4500",
+        "orchid": "#da70d6",
+        "palegoldenrod": "#eee8aa",
+        "palegreen": "#98fb98",
+        "paleturquoise": "#afeeee",
+        "palevioletred": "#d87093",
+        "papayawhip": "#ffefd5",
+        "peachpuff": "#ffdab9",
+        "peru": "#cd853f",
+        "pink": "#ffc0cb",
+        "plum": "#dda0dd",
+        "powderblue": "#b0e0e6",
+        "purple": "#800080",
+        "red": "#ff0000",
+        "rosybrown": "#bc8f8f",
+        "royalblue": "#4169e1",
+        "saddlebrown": "#8b4513",
+        "salmon": "#fa8072",
+        "sandybrown": "#f4a460",
+        "seagreen": "#2e8b57",
+        "seashell": "#fff5ee",
+        "sienna": "#a0522d",
+        "silver": "#c0c0c0",
+        "skyblue": "#87ceeb",
+        "slateblue": "#6a5acd",
+        "slategray": "#708090",
+        "snow": "#fffafa",
+        "springgreen": "#00ff7f",
+        "steelblue": "#4682b4",
+        "tan": "#d2b48c",
+        "teal": "#008080",
+        "thistle": "#d8bfd8",
+        "tomato": "#ff6347",
+        "turquoise": "#40e0d0",
+        "violet": "#ee82ee",
+        "wheat": "#f5deb3",
+        "white": "#ffffff",
+        "whitesmoke": "#f5f5f5",
+        "yellow": "#ffff00",
+        "yellowgreen": "#9acd32"
+    };
+
+    if (typeof colours[colour.toLowerCase()] != 'undefined')
+        return colours[colour.toLowerCase()];
+
+    return false;
+}
+
+function shortHandHexToHex(value) {
+    var r = 0,
+        g = 0,
+        b = 0,
+        a = 1;
+    var v = value;
+    var ret = {};
+
+    var expr1 = /([0-9]+%?)[^0-9A-F]+([0-9]+%?)[^0-9A-F]+([0-9]+%?)(?:[^\d.]+([\d.]+))?/i;
+    var expr2 = /([0-9A-F][0-9A-F])([0-9A-F][0-9A-F])([0-9A-F]?[0-9A-F]?)/i;
+    var expr3 = /([0-9A-F])([0-9A-F]?)([0-9A-F]?)/i;
+    if (expr1.exec(v)) {
+        r = RegExp.$1;
+        g = RegExp.$2;
+        b = RegExp.$3;
+        if (RegExp.$4 && RegExp.$4.length > 0) a = 1 * RegExp.$4;
+        if (r.indexOf("%") >= 0) r = Math.round(parseInt(r) * 2.55);
+        if (g.indexOf("%") >= 0) g = Math.round(parseInt(g) * 2.55);
+        if (b.indexOf("%") >= 0) b = Math.round(parseInt(b) * 2.55);
+    } else if (expr2.exec(v)) {
+        r = parseInt((RegExp.$1 + "00").substr(0, 2), 16);
+        g = parseInt((RegExp.$2 + "00").substr(0, 2), 16);
+        b = parseInt((RegExp.$3 + "00").substr(0, 2), 16);
+    } else if (expr3.exec(v)) {
+        r = parseInt("0" + RegExp.$1 + RegExp.$1, 16);
+        g = parseInt("0" + RegExp.$2 + RegExp.$2, 16);
+        b = parseInt("0" + RegExp.$3 + RegExp.$3, 16);
+    }
+
+    r = Math.min(Math.max(0, r), 255);
+    g = Math.min(Math.max(0, g), 255);
+    b = Math.min(Math.max(0, b), 255);
+    while (a > 1) a /= 100;
+
+    v = "#" + (r < 16 ? "0" : "") + r.toString(16) +
+        (g < 16 ? "0" : "") + g.toString(16) + (b < 16 ? "0" : "") + b.toString(16);
+    v = v.toUpperCase();
+
+    ret.vhex = v;
+    ret.vhexl = v.toLowerCase();
+
+    /* Short color names only */
+    var colornames = {
+        '00FFFF': 'aqua', // it's duplicated !
+        'F0FFFF': 'azure',
+        'F5F5DC': 'beige',
+        'FFE4C4': 'bisque',
+        '000000': 'black',
+        '0000FF': 'blue',
+        'B00000': 'blush',
+        'A52A2A': 'brown',
+        'FF7F50': 'coral',
+        '00FFFF': 'cyan', // it's duplicated !
+        'FF00FF': 'fuchsia',
+        'FFD700': 'gold',
+        '808080': 'gray',
+        '008000': 'green',
+        '4B0082': 'indigo',
+        'FFFFF0': 'ivory',
+        'F0E68C': 'khaki',
+        '00FF00': 'lime',
+        'FAF0E6': 'linen',
+        '800000': 'maroon',
+        '000080': 'navy',
+        '808000': 'olive',
+        'FFA500': 'orange',
+        'DA70D6': 'orchid',
+        'CD853F': 'peru',
+        'FFC0CB': 'pink',
+        'DDA0DD': 'plum',
+        '800080': 'purple',
+        'FF0000': 'red',
+        'FA8072': 'salmon',
+        'A0522D': 'sienna',
+        'C0C0C0': 'silver',
+        'FFFAFA': 'snow',
+        'D2B48C': 'tan',
+        '008080': 'teal',
+        'FF6347': 'tomato',
+        'EE82EE': 'violet',
+        'F5DEB3': 'wheat',
+        'FFFFFF': 'white',
+        'FFFF00': 'yellow'
+    };
+    if (colornames[v.substr(1, 6)]) v = colornames[v.substr(1, 6)];
+    else v = "inherit";
+    ret.vname = v;
+
+    v = "rgb(" + Math.round(r) + "," + Math.round(g) + "," + Math.round(b) + ")";
+    ret.vdecimal = v;
+
+    v = "rgba(" + Math.round(r) + "," + Math.round(g) + "," + Math.round(b) + "," + a + ")";
+    ret.vdecimala = v;
+
+    v = "rgb(" + Math.round(r / 2.55) + "%," + Math.round(g / 2.55) + "%," +
+        Math.round(b / 2.55) + "%)";
+    ret.vpercent = v;
+
+    v = "#" + (r < 1 ? "0" : Math.round(r / 17).toString(16)) +
+        (g < 1 ? "0" : Math.round(g / 17).toString(16)) +
+        (b < 1 ? "0" : Math.round(b / 17).toString(16));
+    v = v.toUpperCase();
+    ret.vshort = v;
+    ret.vshortl = v.toLowerCase();
+
+    v = "#" + (r < 1 ? "0" : (Math.round(r / 51) * 3).toString(16)) +
+        (g < 1 ? "0" : (Math.round(g / 51) * 3).toString(16)) +
+        (b < 1 ? "0" : (Math.round(b / 51) * 3).toString(16));
+    v = v.toUpperCase();
+    ret.vsafe = v;
+
+    return ret;
+}
+
+/* Other */
+function getQueryVariable(variable) {
+    var query = window.location.search.substring(1);
+    var vars = query.split("&");
+    for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split("=");
+        if (pair[0] == variable) {
+            return pair[1];
+        }
+    }
+    return (false);
+}
+var initToolTips = function() {
+    var couponcodes = document.getElementsByClassName("ctooltip");
+    for (var i = 0; i < couponcodes.length; i++) {
+        couponcodes[i].addEventListener("mouseover", function() {
+            var coupontooltip = this.getElementsByClassName("tooltip")[0];
+            coupontooltip.removeAttribute("style");
+        });
+        couponcodes[i].addEventListener("mouseout", function() {
+            var coupontooltip = this.getElementsByClassName("tooltip")[0];
+            coupontooltip.style.display = "none";
+        });
+    }
+};
+var hideColorPicker = function(e) {
+    var container = $("#colorpicker-holder-text");
+    hexvalue = $("colorpicker_hex");
+    if (!container.is(e.target) && !hexvalue.is(e.target) && // if the target of the click isn't the container...
+        container.has(e.target).length === 0) // ... nor a descendant of the container
+    {
+        //  container.hide('slow');
+        $("#colorpicker-holder-text").hide();
+        //window.colorpicker.visible = false;
+    }
+    container = $("#colorpicker-holder-symbol");
+
+    if (!container.is(e.target) && // if the target of the click isn't the container...
+        container.has(e.target).length === 0) // ... nor a descendant of the container
+    {
+        //  container.hide('slow');
+        $("#colorpicker-holder-symbol").hide();
+        //window.colorpicker.visible = false;
+    }
+    container = $("#colorpicker-holder-bg");
+    if (!container.is(e.target) && // if the target of the click isn't the container...
+        container.has(e.target).length === 0) // ... nor a descendant of the container
+    {
+        //  container.hide('slow');
+        $("#colorpicker-holder-bg").hide();
+        //window.colorpicker.visible = false;
+    }
+};
+var hideregisterModal = function(e) {
+    var container = $("#downloadLogo-modal-upgrade");
+    var errortext = $("#payment-error-logo-modal");
+    if (!container.is(e.target) && (container.has(e.target).length === 0) && (!errortext.is(e.target)) && (errortext.has(e.target).length === 0)) // ... nor a descendant of the container
+    {
+        //  container.hide('slow');
+        $("#downloadLogo-modal-upgrade").hide();
+        $("#drop-down-payments").hide();
+        $("#become-premium-modal").show();
+        $("#download-email-error-text").css("visibility", "hidden");
+        $("#drop-down-payments").hide();
+        $("#become-premium-modal").show();
+        $("#open-payment-options").hide();
+        $("#paypal-button-container-upgrade").hide();
+        //window.colorpicker.visible = false;
+    }
+};
+
+var hideDownloadModal = function(e) {
+    var container = $("#downloadLogo-emails-modal");
+    var errortext = $("#there-was-an-error");
+    if (!container.is(e.target) && (container.has(e.target).length === 0) && (!errortext.is(e.target)) && (errortext.has(e.target).length === 0)) // ... nor a descendant of the container
+    {
+        //  container.hide('slow');
+        $("#downloadLogo-emails-modal-cover").hide();
+        $("#there-was-an-error").hide();
+        //window.colorpicker.visible = false;
+    }
+
+    container = $("#downloadLogo-select-format-modal");
+    errortext = $("#save-and-continue-modal-error-text");
+    if (!container.is(e.target) && (container.has(e.target).length === 0) && (!errortext.is(e.target)) && (errortext.has(e.target).length === 0)) // ... nor a descendant of the container
+    {
+        //  container.hide('slow');
+        $("#downloadLogo-select-format-modal-cover").hide();
+        $("#save-and-continue-modal-error-text").hide();
+        //window.colorpicker.visible = false;
+    }
+
+    container = $("#downloadLogo-select-payment-modal");
+    if (!container.is(e.target) && (container.has(e.target).length === 0)) // ... nor a descendant of the container
+    {
+        //  container.hide('slow');
+        $("#cover").hide()
+        $("#downloadLogo-select-payment-modal-cover").hide();
+        $("#pay-with-credit-card").hide();
+        $("#drop-down-payments-new-flow").hide();
+        $("#paypal-button-container").hide();
+        $("#become-premium-modal-new-flow").show();
+        //window.colorpicker.visible = false;
+    }
+
+    container = $("#downloadLogo-low-resolution-download-modal");
+    if (!container.is(e.target) && (container.has(e.target).length === 0)) // ... nor a descendant of the container
+    {
+        //  container.hide('slow');
+        $("#downloadLogo-low-resolution-download-modal-cover").hide();
+        //window.colorpicker.visible = false;
+    }
+
+   
+
+    container = $("#saved-modal");
+    if (!container.is(e.target) && (container.has(e.target).length === 0)) // ... nor a descendant of the container
+    {
+        //  container.hide('slow');
+        $("#saved-modal-cover").hide();
+        //window.colorpicker.visible = false;
+    }
+
+
+
+};
+var post = function(path, params, method) {
+    method = method || "post"; // Set method to post by default if not specified.
+
+    // The rest of this code assumes you are not using a library.
+    // It can be made less wordy if you use one.
+    var form = document.createElement("form");
+    form.setAttribute("method", method);
+    form.setAttribute("action", path);
+    form.setAttribute("target", '_blank');
+
+    for (var key in params) {
+        if (params.hasOwnProperty(key)) {
+            var hiddenField = document.createElement("input");
+            hiddenField.setAttribute("type", "hidden");
+            hiddenField.setAttribute("name", key);
+            hiddenField.setAttribute("value", params[key]);
+
+            form.appendChild(hiddenField);
+        }
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+}
+Tools.hideColorPicker = function() {
+
+    $("#colorpicker-holder-symbol").hide();
+    $("#colorpicker-holder-text").hide();
+    $("#colorpicker-holder-bg").hide();
+
+};
+Tools.undoColorPicker = function() {
+
+    $("#colorpicker-holder-symbol").hide();
+    $("#colorpicker-holder-text").hide();
+
+};
+Tools.makeid = function(length) {
+    var text = "";
+    // abcdefghijklmnopqrstuvwxyz
+    // ABCDEFGHIJKLMNOPQRSTUVWXYZ
+    var possible = "0123456789";
+
+    for (var i = 0; i < length; i++)
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+    return text;
+}
+
+Tools.makeFakePromise = function() {
+    return new Promise(function(resolve, reject) {
+        resolve(1);
+    });
+};
+Tools.generateOlmDate = function() {
+    var date = new Date().toString();
+    var split_date = date.split(' ');
+
+    // Get rid of the week day.
+    split_date.splice(0, 1);
+
+    var month = split_date[0];
+    var day = split_date[1];
+
+    // Get the last two digits.
+    var year = split_date[2].slice(2, 4);
+    var time = split_date[3].split(':');
+
+    var hour = time[0];
+    var minute = time[1];
+    var second = time[2];
+
+    month = "JanFebMarAprMayJunJulAugSepOctNovDec".indexOf(month) / 3 + 1;
+    if (month < 10) month = '0' + month;
+
+    return {
+        month: month,
+        day: day,
+        year: year,
+        hour: hour,
+        minute: minute
+    }
+};
+Tools.translateText = function(textid) {
+
+    if (this.translations[textid]) {
+        return (this.translations[textid]);
+    }
+    return "String not found!";
+};
+Tools.translateAndSwitch = function(val, newText) {
+
+    var _this = this;
+
+    var testLang = Tools.QueryString();
+    if (!testLang.lang)
+        testLang.lang = "en";
+    if (val) {
+        testLang.lang = val;
+    }
+    $("#language-dropdown-text").text(newText);
+
+    window.lang = testLang.lang;
+    $("#language-dropdown-text").text(translateTable[testLang.lang]);
+     var projectDataUrl = "assets/i18n/";
+
+
+
+
+    Tools.translations = {};
+    projectDataUrl = projectDataUrl + testLang.lang + '.json?v=' + Math.floor(Date.now() / 1000).toString();
+    $.get(projectDataUrl, function(data, status) {
+
+        for (var key in data.direct) {
+            if (data.direct.hasOwnProperty(key)) {
+                $("#" + key.toString()).html(data.direct[key]);
+                _this.translations[key] = data.direct[key];
+            }
+        }
+        for (var key in data.indirect) {
+            if (data.indirect.hasOwnProperty(key)) {
+                _this.translations[key] = data.indirect[key];
+            }
+        }
+        for (var key in data.titles) {
+            if (data.titles.hasOwnProperty(key)) {
+                $("#" + key.toString()).attr('title', data.titles[key]);
+            }
+        }
+        $("#click-log-in-text-2").text(Tools.translateText("click-log-in-text"));
+        $("#fullname-placeholder-text").attr("placeholder", Tools.translateText("fullname-placeholder-text"));
+        $("#download-email-input-box").attr("placeholder", Tools.translateText("email-placeholder-text"));
+
+        $("#agree-low-resolution-download").attr("placeholder", Tools.translateText("fullname-placeholder-text"));
+
+        var testPrice = Tools.QueryString();
+             if (testPrice.p == 'true' && (window.lang =='en') ){
+                $("#download-payment-fifth-text").html("<span>Premium Logo Package </span><span style='font-size:35px;color:#1abc9c;'>$49</span>");
+            
+                
+        }
+        
+        $("#create-account-text-2").text(Tools.translateText("create-account-text"));
+        $("#fullname-placeholder-text-2").attr("placeholder", Tools.translateText("fullname-placeholder-text"));
+        $("#email-placeholder-text").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#email-placeholder-text-left").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#password-placeholder-text-left").attr("placeholder", Tools.translateText("password-placeholder-text"));
+        $("#password-placeholder-text").attr("placeholder", Tools.translateText("password-placeholder-text"));
+         $("#bussiness-name-input").attr("placeholder", Tools.translateText("placeholder-your-text"));
+        
+        $("#email-input-box").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#olm-search").attr("placeholder", Tools.translateText("search-placeholder-text"));
+        $('#dlink').text(Tools.translateText('wait-text'));
+        $('#erase-text-text')[0].childNodes[0].nodeValue = Tools.translateText("erase-text-text");
+        $('#erase-no-text')[0].childNodes[0].nodeValue = Tools.translateText("erase-no-text");
+        $('#erase-yes-text')[0].childNodes[0].nodeValue = Tools.translateText("erase-yes-text");
+        Tools.organizeLayout();
+    });
+};
+Tools.translatePage = function(val) {
+    var translateTable = {
+        'ar': 'العربية', // it's duplicated !
+        'cn': '中文',
+        'de': 'Deutsch',
+        'en': 'English',
+        'es': 'Español',
+        'fr': 'Français',
+        'in': 'हिंदी',
+        'it': 'Italiano',
+        'jp': '日本語',
+        'kr': '한국어', // it's duplicated !
+        'my': 'Bahasa Melayu',
+        'pl': 'Polski',
+        'pt': 'Português',
+        'ru': 'Русский',
+        'th': 'ไทย',
+        'tr': 'Türkçe',
+        'ua': 'Українська'
+    }
+    $(".actionButtons").remove();
+    //Show all languages on selector
+    for (lang in translateTable) {
+        $("#" + lang).show();
+    }
+    var _this = this;
+
+    var testLang = Tools.QueryString();
+    if (!testLang.lang)
+        testLang.lang = "en";
+    if (val) {
+        testLang.lang = val;
+    }
+    //Remove the current language from the selector
+    $("#" + testLang.lang).hide();
+    //Send google analytics about user interaction with the btn
+    ga("send", "event", "App Click", "App Translate", testLang.lang);
+
+    msg.send('reload-categories');
+    window.lang = testLang.lang;
+    $("#language-dropdown-text").text(translateTable[testLang.lang]);
+    var projectDataUrl = "assets/i18n/";
+
+
+
+
+    Tools.translations = {};
+    projectDataUrl = projectDataUrl + testLang.lang + '.json?v=' + Math.floor(Date.now() / 1000).toString();
+    $.get(projectDataUrl, function(data, status) {
+        for (var key in data.direct) {
+            if (data.direct.hasOwnProperty(key)) {
+                $("#" + key.toString()).html(data.direct[key]);
+                _this.translations[key] = data.direct[key];
+            }
+        }
+        for (var key in data.indirect) {
+            if (data.indirect.hasOwnProperty(key)) {
+                _this.translations[key] = data.indirect[key];
+            }
+        }
+        for (var key in data.titles) {
+            if (data.titles.hasOwnProperty(key)) {
+                $("#" + key.toString()).attr('title', data.titles[key]);
+
+
+            }
+        }
+        $("#click-log-in-text-2").text(Tools.translateText("click-log-in-text"));
+        $("#agree-low-resolution-download").attr("placeholder", Tools.translateText("fullname-placeholder-text"));
+        $("#fullname-placeholder-text").attr("placeholder", Tools.translateText("fullname-placeholder-text"));
+        $("#create-account-text-2").text(Tools.translateText("create-account-text"));
+        $("#download-email-input-box").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#fullname-placeholder-text-2").attr("placeholder", Tools.translateText("fullname-placeholder-text"));
+        $("#email-placeholder-text").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#email-placeholder-text-left").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#password-placeholder-text-left").attr("placeholder", Tools.translateText("password-placeholder-text"));
+        $("#password-placeholder-text").attr("placeholder", Tools.translateText("password-placeholder-text"));
+        $("#email-input-box").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#bussiness-name-input").attr("placeholder", Tools.translateText("placeholder-your-text"));
+        $("#olm-search").attr("placeholder", Tools.translateText("search-placeholder-text"));
+        $('#dlink').text(Tools.translateText('download-logo-text'));
+           var testPrice = Tools.QueryString();
+             if (testPrice.p == 'true'  && (window.lang =='en') ){
+                $("#download-payment-fifth-text").html("<span>Premium Logo Package </span><span style='font-size:35px;color:#1abc9c;'>$49</span>");
+            
+                
+        }
+        $('#erase-text-text')[0].childNodes[0].nodeValue = Tools.translateText("erase-text-text");
+        //$('#dl')[0].childNodes[0].nodeValue = Tools.translateText ("dl");
+        $('#erase-no-text')[0].childNodes[0].nodeValue = Tools.translateText("erase-no-text");
+        $('#erase-yes-text')[0].childNodes[0].nodeValue = Tools.translateText("erase-yes-text");
+
+        Tools.organizeLayout();
+    });
+
+
+};
+Tools.translatePageInit = function(val) {
+    var translateTable = {
+        'ar': 'العربية', // it's duplicated !
+        'cn': '中文',
+        'de': 'Deutsch',
+        'en': 'English',
+        'es': 'Español',
+        'fr': 'Français',
+        'in': 'हिंदी',
+        'it': 'Italiano',
+        'jp': '日本語',
+        'kr': '한국어', // it's duplicated !
+        'my': 'Bahasa Melayu',
+        'pl': 'Polski',
+        'pt': 'Português',
+        'ru': 'Русский',
+        'th': 'ไทย',
+        'tr': 'Türkçe',
+        'ua': 'Українська'
+    }
+    //Show all languages on selector
+    for (lang in translateTable) {
+        $("#" + lang).show();
+    }
+    var _this = this;
+
+    var testLang = Tools.QueryString();
+    if (!testLang.lang)
+        testLang.lang = "en";
+    if (val) {
+        testLang.lang = val;
+    }
+    //Remove the current language from the selector
+    $("#" + testLang.lang).hide();
+    //Send google analytics about user interaction with the btn
+
+
+    msg.send('reload-categories');
+    window.lang = testLang.lang;
+    $("#language-dropdown-text").text(translateTable[testLang.lang]);
+    var projectDataUrl = "assets/i18n/";
+
+
+
+
+    Tools.translations = {};
+    projectDataUrl = projectDataUrl + testLang.lang + '.json?v=' + Math.floor(Date.now() / 1000).toString();
+    $.get(projectDataUrl, function(data, status) {
+        for (var key in data.direct) {
+            if (data.direct.hasOwnProperty(key)) {
+                $("#" + key.toString()).html(data.direct[key]);
+                _this.translations[key] = data.direct[key];
+            }
+        }
+        for (var key in data.indirect) {
+            if (data.indirect.hasOwnProperty(key)) {
+                _this.translations[key] = data.indirect[key];
+            }
+        }
+        for (var key in data.titles) {
+            if (data.titles.hasOwnProperty(key)) {
+                $("#" + key.toString()).attr('title', data.titles[key]);
+
+
+            }
+        }
+        $("#click-log-in-text-2").text(Tools.translateText("click-log-in-text"));
+        $("#agree-low-resolution-download").attr("placeholder", Tools.translateText("fullname-placeholder-text"));
+        $("#fullname-placeholder-text").attr("placeholder", Tools.translateText("fullname-placeholder-text"));
+        $("#create-account-text-2").text(Tools.translateText("create-account-text"));
+        $("#download-email-input-box").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#fullname-placeholder-text-2").attr("placeholder", Tools.translateText("fullname-placeholder-text"));
+        $("#email-placeholder-text").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#email-placeholder-text-left").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#password-placeholder-text-left").attr("placeholder", Tools.translateText("password-placeholder-text"));
+        $("#email-input-box").attr("placeholder", Tools.translateText("email-placeholder-text"));
+        $("#bussiness-name-input").attr("placeholder", Tools.translateText("placeholder-your-text"));
+        $("#password-placeholder-text").attr("placeholder", Tools.translateText("password-placeholder-text"));
+        $("#olm-search").attr("placeholder", Tools.translateText("search-placeholder-text"));
+        $('#dlink').text(Tools.translateText('wait-text'));
+           var testPrice = Tools.QueryString();
+             if (testPrice.p == 'true' && (window.lang =='en') ){
+                $("#download-payment-fifth-text").html("<span>Premium Logo Package </span><span style='font-size:35px;color:#1abc9c;'>$49</span>");
+            
+                
+        }
+        $('#erase-text-text')[0].childNodes[0].nodeValue = Tools.translateText("erase-text-text");
+        //$('#dl')[0].childNodes[0].nodeValue = Tools.translateText ("dl");
+        $('#erase-no-text')[0].childNodes[0].nodeValue = Tools.translateText("erase-no-text");
+        $('#erase-yes-text')[0].childNodes[0].nodeValue = Tools.translateText("erase-yes-text");
+
+        Tools.organizeLayout();
+    });
+
+
+};
+
+Tools.ChangeCurrentCurrency = function(val) {
+
+
+
+};
+
+Tools.getCurrentPaymentValues = function() {
+
+
+
+}
+
+
+
+Tools.organizeLayout = function() {
+    //Not docked
+    /* if (document.documentElement.clientWidth > 1050) {
+         var width = $("#bgcolor-text").width();
+         var newWith = width -115;
+         $("#color-box").attr('style','left:'+(newWith).toString()+'px !important');
+         $("#full-grid-btn").attr('style','margin-left:'+(width - 116).toString()+'px !important');
+         width = $("#grid-text").width()-23;
+         $("#gridToggle").attr('style','margin-left:'+(width).toString()+'px !important');
+     }
+     //Docked
+     else {
+         $("#gridToggle").attr('style','margin-left:'+(-80).toString()+'px !important');
+     }*/
+
+};
+
+Tools.getQueryParameters = function(param) {
+    var url = location.href;
+    var name = param;
+    var regexS = "[\\?&]" + name + "=([^&#]*)";
+    var regex = new RegExp(regexS);
+    var results = regex.exec(url);
+    var downloadflag = "";
+    if (results != null)
+        return downloadflag = results[1];
+    return "";
+};
+
+Tools.getSubDomain = function() {
+    var url = "https://es.onlinelogomaker.com/logomaker/";
+    var testUrl = "https://es.onlinelogomaker.com/logomaker/";
+    // IF THERE, REMOVE WHITE SPACE FROM BOTH ENDS
+    testUrl = testUrl.replace(new RegExp(/^\s+/), ""); // START
+    testUrl = testUrl.replace(new RegExp(/\s+$/), ""); // END
+    // IF FOUND, CONVERT BACK SLASHES TO FORWARD SLASHES
+    testUrl = testUrl.replace(new RegExp(/\\/g), "/");
+    // IF THERE, REMOVES 'http://', 'https://' or 'ftp://' FROM THE START
+    testUrl = testUrl.replace(new RegExp(/^http\:\/\/|^https\:\/\/|^ftp\:\/\//), "");
+    // IF THERE, REMOVES 'www.' FROM THE START OF THE STRING
+    testUrl = testUrl.replace(new RegExp(/^www\./i), "");
+    // REMOVE COMPLETE STRING FROM FIRST FORWARD SLASH ON
+    testUrl = testUrl.replace(new RegExp(/\/(.*)/), "");
+    // REMOVES '.??.??' OR '.???.??' FROM END - e.g. '.CO.UK', '.COM.AU'
+    if (testUrl.match(new RegExp(/\.[a-z]{2,3}\.[a-z]{2}$/i))) {
+        testUrl = testUrl.replace(new RegExp(/\.[a-z]{2,3}\.[a-z]{2}$/i), "");
+        // REMOVES '.??' or '.???' or '.????' FROM END - e.g. '.US', '.COM', '.INFO'
+    } else if (testUrl.match(new RegExp(/\.[a-z]{2,4}$/i))) {
+        testUrl = testUrl.replace(new RegExp(/\.[a-z]{2,4}$/i), "");
+    }
+    // CHECK TO SEE IF THERE IS A DOT '.' LEFT IN THE STRING
+    var checkExists = (testUrl.match(new RegExp(/\./g))) ? true : false;
+    if (checkExists) {
+        var domain = url;
+        var subdomain = domain.split("/")[2].split(".")[0];
+        return subdomain;
+    } else
+        return "en";
+};
+
+Tools.createCookie = function(name, value, days) {
+    var expires;
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toGMTString();
+    } else {
+        expires = "";
+    }
+    document.cookie = name + "=" + value + expires + "; path=/";
+};
+
+
+
+Tools.getCookie = function(c_name) {
+    if (document.cookie.length > 0) {
+        c_start = document.cookie.indexOf(c_name + "=");
+        if (c_start != -1) {
+            c_start = c_start + c_name.length + 1;
+            c_end = document.cookie.indexOf(";", c_start);
+            if (c_end == -1) {
+                c_end = document.cookie.length;
+            }
+            return unescape(document.cookie.substring(c_start, c_end));
+        }
+    }
+    return "";
+};
+
+Tools.validateEmail = function(sEmail) {
+    var reEmail = /^(?:[\w\!\#\$\%\&\'\*\+\-\/\=\?\^\`\{\|\}\~]+\.)*[\w\!\#\$\%\&\'\*\+\-\/\=\?\^\`\{\|\}\~]+@(?:(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-](?!\.)){0,61}[a-zA-Z0-9]?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\-](?!$)){0,61}[a-zA-Z0-9]?)|(?:\[(?:(?:[01]?\d{1,2}|2[0-4]\d|25[0-5])\.){3}(?:[01]?\d{1,2}|2[0-4]\d|25[0-5])\]))$/;
+    if (!sEmail) {
+        return false;
+    }
+    if (!sEmail.match(reEmail)) {
+
+        return false;
+    }
+
+    return true;
+
+};
+
+
+Tools.changeDomainName = function() {
+    var finalDomainName = '';
+    var canvasObjs = canvas.getObjects('i-text');
+    if (canvasObjs.length == 0)
+        return false;
+    for (var i = canvasObjs.length - 1; i >= 0; i--) {
+        canvasObjs[i].text[0] = canvasObjs[i].text[0].toUpperCase();
+        finalDomainName += canvasObjs[i].text.replace(/[^\w\s]|_/g, "").replace(/\s+/g, "");
+    }
+    if (finalDomainName.length > 25) {
+        finalDomainName = finalDomainName.substring(0, 25);
+    }
+    $("#domain-name").text(finalDomainName);
+    return true;
+
+}
+
+Tools.showDomainPopUp = function() {
+    if (Tools.changeDomainName())
+        $("#domain-modal").show();
+}
+
+
+Tools.startDownload = function() {
+    window.flag = true;
+    msg.send('open-popup', 'downloadlogo');
+}
+Tools.QueryString = function() {
+    // This function is anonymous, is executed immediately and 
+    // the return value is assigned to QueryString!
+    var query_string = {};
+    var query = window.location.search.substring(1);
+    var vars = query.split("&");
+    for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split("=");
+        // If first entry with this name
+        if (typeof query_string[pair[0]] === "undefined") {
+            query_string[pair[0]] = decodeURIComponent(pair[1]);
+            // If second entry with this name
+        } else if (typeof query_string[pair[0]] === "string") {
+            var arr = [query_string[pair[0]], decodeURIComponent(pair[1])];
+            query_string[pair[0]] = arr;
+            // If third or later entry with this name
+        } else {
+            query_string[pair[0]].push(decodeURIComponent(pair[1]));
+        }
+    }
+    return query_string;
+};
+
+Tools.checkSwitchState = function(id, premium) {
+    var currSwitch = $("#switch" + id.toString());
+    if (currSwitch) {
+        if (currSwitch.hasClass("checked"))
+            return true;
+        else
+            return false;
+    }
+};
+
+Tools.initSwitches = function() {
+    $("#switches-text-left-controller").hide();
+    $("#switches-text-right-controller").hide();
+    $("#prepare-files-btn").hide();
+    for (var i = 1; i < 11; i++) {
+        //Check to see if it is active, then if it is it switches it off.
+        var active = Tools.checkSwitchState(i);
+        if (active)
+            $("#switch" + i.toString()).trigger("click", true);
+    }
+    $("#switch5").on('click', function(e, a) {
+        if (!a)
+            $("#switch5").trigger("click", true);
+
+
+    });
+
+    $("#switch1").on('click', function() {
+        if (Tools.checkSwitchState(1)) {
+            $("#prepare-files-btn").hide();
+            for (var i = 5; i < 8; i++) {
+                var currSwitch = $("#switch" + i.toString());
+                if (Tools.checkSwitchState(i))
+                    currSwitch.trigger("click", true);
+            }
+            $("#switches-text-left-controller").hide();
+        } else {
+            $("#prepare-files-btn").show();
+            $("#switches-text-left-controller").show();
+            if (!Tools.checkSwitchState(5))
+                $("#switch5").trigger("click", true);
+
+        }
+
+    });
+
+    $("#switch2").on('click', function() {
+        if (Tools.checkSwitchState(2)) {
+            for (var i = 8; i < 11; i++) {
+                var currSwitch = $("#switch" + i.toString());
+                if (Tools.checkSwitchState(i))
+                    currSwitch.trigger("click", true);
+            }
+            $("#switches-text-right-controller").hide();
+        } else {
+            $("#switches-text-right-controller").show();
+            if (!Tools.checkSwitchState(8))
+                $("#switch8").trigger("click", true);
+        }
+
+    });
+
+};
+
+Tools.blockPremiumSwitches = function(premium) {
+    var clear = true;
+    var _this = this;
+    for (var i = 2; i < 11; i++) {
+        var currSwitch = $("#switch" + i.toString());
+        if (i == 5)
+            continue;
+        currSwitch.on('click', function(e, a) {
+            //revert the switch!! 
+            for (var i = 1; i < 11; i++) {
+                //Check to see if it is active, then if it is it switches it off.
+                var active = Tools.checkSwitchState(i);
+                if (active && !a)
+                    $("#switch" + i.toString()).trigger("click", true);
+            }
+
+        });
+    }
+};
+
+Tools.generateOlmFileName = function() {
+    var fileExt = Tools.generateOlmDate();
+
+    return 'onlinelogomaker-' +
+        fileExt.month +
+        fileExt.day +
+        fileExt.year +
+        '-' +
+        fileExt.hour +
+        fileExt.minute +
+        '-' +
+        Tools.makeid(4);
+};
+
+Tools.initPaypal = function() {
+    paypal.Button.render({
+
+        env: 'production', // sandbox | production
+
+        // PayPal Client IDs - replace with your own
+        // Create a PayPal app: https://developer.paypal.com/developer/applications/create
+        client: {
+            sandbox: 'AZDxjDScFpQtjWTOUtWKbyN_bDt4OgqaF4eYXlewfBP4-8aqX3PiV8e1GWU6liB2CUXlkA59kJXE7M6R',
+            production: 'AdTt8UrgyFE_4ydKHGiD5QbPYZVjuqOpoR3arHeljTupa3O_SFQL32Zps13b8hZnrivR3LBiH2vJlBHc'
+        },
+
+        style: {
+            size: 'responsive'
+        },
+
+        // Show the buyer a 'Pay Now' button in the checkout flow
+        commit: true,
+
+        // payment() is called when the button is clicked
+        payment: function(data, actions) {
+
+            // Make a call to the REST api to create the payment
+            return actions.payment.create({
+                payment: {
+                    transactions: [{
+                        amount: {
+                            total: $currencyService.currentValuesPaypal,
+                            currency: $currencyService.currentCurrency.toUpperCase()
+                        }
+                    }]
+                }
+            });
+        },
+
+        // onAuthorize() is called when the buyer approves the payment
+        onAuthorize: function(data, actions) {
+
+            // Make a call to the REST api to execute the payment
+            return actions.payment.execute().then(function() {
+
+                var userEmail = $("#download-email-input-box").val();
+
+                var user_ID = Tools.getCookie("userguestid");
+                var SAVE_URL = "https://www.onlinelogomaker.com/version2_scripts/MakePremium.php";
+                $.ajax({
+                    url: SAVE_URL,
+                    type: 'post',
+                    data: {
+                        email: userEmail,
+                        amount: $currencyService.currentValuesStripe,
+                        userid: user_ID,
+                        currency: $currencyService.currentCurrency
+                    },
+                    success: function(data) {
+
+                        $("#downloadLogo-select-payment-modal-cover").hide();
+                        $("#downloadLogo-modal-upgrade").hide();
+                        msg.send('save-project', true, false);
+
+                        var userEmail = $("#download-email-input-box").val();
+                        var projectURL = "https://www.onlinelogomaker.com/logomaker/?project=" + user_ID.toString();
+                        $.post('https://www.onlinelogomaker.com/version2_scripts/downloademail.php', {
+                                email: userEmail,
+                                userid: user_ID,
+                                ispremium: '1',
+                                projecturl: projectURL,
+                            },
+                            function(returnedData) {
+
+                            });
+                        ga('send', 'event', 'Payment Event', 'Payment Sucessful', 'Paypal Payment');
+                        if ((window.lang == 'en'))
+                            ga('send', 'event', 'Payment Event', 'Payment Comparison', "Paypal Payment New version");
+
+                       
+
+                    },
+                    //Error on the server, could be the card as well
+                    error: function(data) {
+                        ga('send', 'event', 'Payment Event', 'Paypal Error on the server', "Error on the server");
+                        alert("Credit Card Error!");
+                        _this.alreadyClicked = false;
+                        console.log(data);
+                    }
+                });
+            });
+        }
+
+    }, '#paypal-button-container');
+
+
+
+    paypal.Button.render({
+
+        env: 'production', // sandbox | production
+
+        // PayPal Client IDs - replace with your own
+        // Create a PayPal app: https://developer.paypal.com/developer/applications/create
+        client: {
+            sandbox: 'AZDxjDScFpQtjWTOUtWKbyN_bDt4OgqaF4eYXlewfBP4-8aqX3PiV8e1GWU6liB2CUXlkA59kJXE7M6R',
+            production: 'AdTt8UrgyFE_4ydKHGiD5QbPYZVjuqOpoR3arHeljTupa3O_SFQL32Zps13b8hZnrivR3LBiH2vJlBHc'
+        },
+
+        style: {
+            size: 'responsive',
+            color: 'gold',
+            shape: 'pill',
+        },
+
+
+
+        // Show the buyer a 'Pay Now' button in the checkout flow
+        commit: true,
+
+        // payment() is called when the button is clicked
+        payment: function(data, actions) {
+
+            // Make a call to the REST api to create the payment
+            return actions.payment.create({
+                payment: {
+                    transactions: [{
+                        amount: {
+                            total: $currencyService.currentValuesPaypal,
+                            currency: $currencyService.currentCurrency.toUpperCase()
+                        }
+                    }]
+                }
+            });
+        },
+
+        // onAuthorize() is called when the buyer approves the payment
+        onAuthorize: function(data, actions) {
+
+            // Make a call to the REST api to execute the payment
+            return actions.payment.execute().then(function() {
+                $("#downloadLogo-select-payment-modal-cover").hide();
+                $("#downloadLogo-modal-upgrade").hide();
+                $("#paypal-completed-premium-modal").show();
+                ga('send', 'event', 'Payment Event', 'Payment Sucessful', 'Paypal Payment');
+                if ((window.lang == 'en'))
+                    ga('send', 'event', 'Payment Event', 'Payment Comparison', "Paypal Payment Normal version");
+              
+            });
+        }
+
+    }, '#paypal-button-container-upgrade');
+}
+
+Tools.mapOlmFont = function(font) {
+    var fonts = {
+        'Adamcg-Pro': 'ADAMCG PRO',
+        'Amerika Sans': 'Amerika Sans',
+        'Arial': 'Arial',
+        'Avondale-Inline': 'Avondale Inline',
+        'Bombardier': 'Bombardier',
+        'Broad': 'Broad',
+        'Cargo-Bay': 'Cargo Bay',
+        'Choda': 'Choda Chado',
+        'Chunky': 'Chunky',
+        'Cloister_Black': 'Cloister Black',
+        'ComicNeue-Regular': 'Comic Neue',
+        'Delicate': 'Delicate',
+        'Diogenes': 'Diogenes',
+        'Dooodleista': 'Dooodleista',
+        'Elektora': 'Elektora',
+        'Eskargot': 'Eskargot',
+        'FFF_Tusj': 'FFF Tusj',
+        'Florencesans': 'Florencesans Shaded',
+        'Freebooter_Script': 'Freebooter Script',
+        'Frigate': 'Frigate',
+        'Frontage-Outline': 'Frontage',
+        'Gilgongo_Tiki': 'Gilgongo Tiki',
+        'GochiHand-Regular': 'Gochi Hand',
+        'GoodDog': 'GoodDog',
+        'Grand-Hotel-Regular': 'Grand Hotel',
+        'Gross-Regular': 'Gross',
+        'Grunja': 'Grunja',
+        'Halcion': 'Halcion',
+        'Harrington': 'Harrington',
+        'Heidorn_Hill': 'Heidorn Hill',
+        'Higher': 'Higher',
+        'Ikaros': 'Ikaros',
+        'Impossible': 'Impossible - 0',
+        'Insula': 'Insula',
+        'Interlude': 'Interlude',
+        'Johanna': 'Johanna',
+        'Kandide': 'Kandide',
+        'Kankin': 'Kankin FREE FONT',
+        'King-Of-The-World': 'King Of The World',
+        'Komikahuna': 'Komikahuna',
+        'Konfuciuz': 'Konfuciuz Fat',
+        'Kronika': 'Kronika',
+        'Lobster-13': 'Lobster 13',
+        'Lovelo-Black': 'Lovelo',
+        'Manifesto': 'MANIFESTO',
+        'Masque': 'Masque',
+        'Merkin': 'Merkin',
+        'Merkin_Foo': 'Merkin Foo',
+        'Metrolox': 'Metrolox',
+        'Mistress': 'Mistress Script',
+        'Neuropol': 'Neuropol',
+        'Northern-Lights': 'Northern Lights',
+        'Open-Sans-Regular': 'Open Sans',
+        'Pica_Hole': 'Pica Hole - MRT',
+        'Plastic': 'Plastic No.29',
+        'Promesh-Regular': 'PROMESH',
+        'Propaganda': 'Propaganda',
+        'Reis-Regular': 'REIS',
+        'Republika_II': 'Republika II Exp',
+        'Rispa-Regular': 'Rispa',
+        'Severina': 'Severina',
+        'Shumi': 'Shumi',
+        'StaticBuzz': 'Static Buzz',
+        'Tiza': 'Tiza',
+        'Top_Secret': 'Top Secret',
+        'Valk-Display': 'ValkDisplay',
+        'Very_Damaged': 'Very Damaged UL',
+        'Walkway-Bold': 'Walkway Bold',
+        'Whackadoo': 'Whackadoo',
+        'Whoa': 'Whoa!',
+        'Xanax': 'Xanax',
+        'Youthanasia': 'Youthanasia',
+        'Zwodrei-Bold': 'zwodrei - free'
+    };
+
+    return fonts[font];
+};
+
+Tools.defaultOlmMessage = {
+    success: '',
+    info: '',
+    fail: 'Sorry, something went wrong, please try again later.'
+};
+
+/* Glass loader */
+var glassLoader = {
+    clear: function() {
+        $(".popup-mask").remove();
+    },
+
+    prepend: function() {
+        this.clear();
+        $("body").prepend("<div id='popup-mask' class='popup-mask' style='position:fixed; width:100%; height:100%; z-index:12; background-color: #333333;'></div>");
+        $("#popup-mask").css('opacity', 1);
+    },
+
+    prependElementOn: function() {
+        $("#id-map-spinner").data('saveZindex', $("#id-map-spinner").css("z-index"));
+        $("#id-map-spinner").data('savePosition', $("#id-map-spinner").css("position"));
+        $("#id-map-spinner").css("z-index", 13);
+    },
+
+    nothing: function() {
+        var that = this;
+        that.prepend();
+        $("body").prepend("<div class='uil-cube-css' style='-webkit-transform:scale(0.6)' id='preloader'><div></div><div></div><div></div><div></div></div>");
+        this.prependElementOn();
+    },
+
+    start: function() {
+        this.prepend();
+        $("body").prepend("<div class='uil-cube-css' style='-webkit-transform:scale(0.6)' id='preloader'><div></div><div></div><div></div><div></div></div>");
+        this.prependElementOn();
+    },
+
+    stop: function(timeout) {
+        var _timeout = 0;
+
+        if (timeout)
+            _timeout = timeout;
+
+        setTimeout(function() {
+            if ($("#popup-mask") != null) {
+                $("#popup-mask").remove();
+            }
+            if ($("#preloader") != null) {
+                $("#preloader").remove();
+            }
+            if ($('.popup-mask') != null) {
+                $(".popup-mask").remove();
+            }
+        }, _timeout)
+    },
+};
+
+/* Document */
+$(document).ready(function() {
+    window.addEventListener("load", initToolTips);
+    window.addEventListener("load", Tools.ChangeCurrentCurrency);
+    window.addEventListener("mouseup", hideColorPicker);
+    window.addEventListener("mouseup", hideregisterModal);
+    window.addEventListener("mouseup", hideDownloadModal);
+
+
+
+    // A mess, probably copy pasted.
+    // todo: remove this later on.
+    $('#tools-download-button').click(function(e) {
+        e.preventDefault();
+
+        var maskHeight = $(document).height();
+        var maskWidth = $(document).width();
+
+        $('#mask').css({
+            'width': maskWidth,
+            'height': maskHeight
+        });
+
+        $('#mask').fadeIn(1000);
+        $('#mask').fadeTo("slow", 0.9);
+
+        // Get the window height and width
+        var winH = $(document).height();
+        var winW = $(document).width();
+    });
+
+    if (canvas != undefined) {
+        window.addEventListener("resize", setCanvasDimensions);
+        document.getElementById('grid').width = canvas.getWidth();
+        document.getElementById('grid').height = canvas.getHeight();
+    }
+});
